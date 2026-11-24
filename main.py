@@ -84,7 +84,7 @@ def main(page: ft.Page):
 
     async def choose_file(_):
         try:
-            await picker.pick_files(
+            picker.pick_files(
                 allow_multiple=False,
                 allowed_extensions=["pak"],
                 dialog_title="Выберите PAK-файл"
@@ -94,7 +94,7 @@ def main(page: ft.Page):
 
     async def choose_folder(_):
         try:
-            await folder_picker.get_directory_path(
+            folder_picker.get_directory_path(
                 dialog_title="Куда сохранить результат"
             )
         except Exception as ex:
