@@ -82,11 +82,23 @@ def main(page: ft.Page):
             return False
         return True
 
-    def choose_file(_):
-        picker.pick_files(allow_multiple=False, allowed_extensions=["pak"], dialog_title="Выберите PAK-файл")
+    async def choose_file(_):
+        try:
+            await picker.pick_files(
+                allow_multiple=False,
+                allowed_extensions=["pak"],
+                dialog_title="Выберите PAK-файл"
+            )
+        except Exception as ex:
+            add_log(f"Ошибка выбора файла: {ex}", "#FF7373")
 
-    def choose_folder(_):
-        folder_picker.get_directory_path(dialog_title="Куда сохранить результат")
+    async def choose_folder(_):
+        try:
+            await folder_picker.get_directory_path(
+                dialog_title="Куда сохранить результат"
+            )
+        except Exception as ex:
+            add_log(f"Ошибка выбора папки: {ex}", "#FF7373")
 
     def unpack(_):
         if state["busy"] or not require_ready():
