@@ -1,4 +1,4 @@
-name: Build Doxachkaa APK
+name: Build DoxaGuard APK
 
 on:
   push:
@@ -33,10 +33,10 @@ jobs:
         run: pip install flet==0.25.2
 
       - name: Build APK
-        run: flet build apk --project "Doxachkaa Master Utilities"
+        run: flet build apk --project "DoxaGuard" --org com.doxaguard
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Doxachkaa_Master_Utilities_APK
+          name: DoxaGuard_APK
           path: build/apk/app-release.apk
