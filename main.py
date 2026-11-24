@@ -82,17 +82,17 @@ def main(page: ft.Page):
             return False
         return True
 
-    async def choose_file(_):
+    def choose_file(_):
         try:
             picker.pick_files(
                 allow_multiple=False,
-                allowed_extensions=["pak"],
+                file_type=ft.FilePickerFileType.ANY,
                 dialog_title="Выберите PAK-файл"
             )
         except Exception as ex:
             add_log(f"Ошибка выбора файла: {ex}", "#FF7373")
 
-    async def choose_folder(_):
+    def choose_folder(_):
         try:
             folder_picker.get_directory_path(
                 dialog_title="Куда сохранить результат"
