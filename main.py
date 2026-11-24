@@ -112,6 +112,8 @@ def main(page: ft.Page):
             status.value = "Распаковка завершена"
             status.color = "#62E6B2"
             add_log(f"Распаковка завершена. Извлечено: {extracted}; сырых: {raw}", "#62E6B2")
+            if getattr(pak, "last_error", None):
+                add_log(f"Причина сырых файлов: {pak.last_error}", "#FF7373")
             add_log(f"Папка результата: {destination}")
         except Exception as ex:
             logging.exception("Unpack failed")

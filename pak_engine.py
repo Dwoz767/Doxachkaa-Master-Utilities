@@ -627,7 +627,7 @@ class TencentPakFile:
 
     def unpack_all(self, out_dir: Path, progress_callback=None, max_workers: int = 8) -> Tuple[int, int]:
         """High-speed multi-threaded unpack."""
-        out_base = out_dir / self.mount_point
+        clean_mp = self.mount_point.lstrip("./\\"); out_base = out_dir / clean_mp if clean_mp else out_dir
         out_base.mkdir(parents=True, exist_ok=True)
         
         all_items = []
@@ -648,7 +648,10 @@ class TencentPakFile:
                 with open(t_path, 'wb') as f:
                     f.write(data)
                 return True
-            except Exception:
+            except Exception as ex:
+                if not hasattr(self, "_logged_err"):
+                    self._logged_err = True
+                    print(f"[UNPACK ERROR] {f_rel}: {type(ex).__name__}: {ex}")
                 # Raw dump fallback on un-decryptable or corrupted blocks
                 try:
                     with open(t_path, 'wb') as f:
