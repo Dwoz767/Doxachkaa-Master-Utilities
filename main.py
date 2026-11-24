@@ -1,131 +1,214 @@
-import os
-from pathlib import Path, PurePath
+import logging
+from pathlib import Path
 import flet as ft
 from pak_engine import TencentPakFile, build_reconstructed_pak
 
-DOWNLOADS = Path("/storage/emulated/0/Download")
-DEFAULT_TAG = "Telegram @Doxa_pubg_cfg. DOXACHKA"
-TARGET_PHRASE = "Нажмите для просмотра особенностей FLASH."
+APP_NAME = "DOXACHKAA MASTER UTILITIES"
+
 
 def main(page: ft.Page):
-    page.title = "Doxachkaa Master Utilities"
+    page.title = APP_NAME
     page.theme_mode = ft.ThemeMode.DARK
-    page.bgcolor = "#0F111A"
-    page.padding = 20
+    page.bgcolor = "#0B0D14"
+    page.padding = 18
     page.scroll = ft.ScrollMode.AUTO
+    page.window_min_width = 340
+    page.window_min_height = 620
 
-    selected_pak = {"path": None}
+    state = {"pak": None, "output": None, "busy": False}
 
-    status_text = ft.Text("Выберите исходный .pak файл из папки Download", color="#A0A8C0", size=14)
-    log_box = ft.Text("", color="#00FFAA", size=12, selectable=True)
-    tag_input = ft.TextField(
-        label="Ваш рекламный тег (до 42 символов)",
-        value=DEFAULT_TAG,
-        max_length=42,
-        border_color="#6C63FF"
-    )
-    out_name_input = ft.TextField(
-        label="Имя выходного файла",
-        value="game_patch_4.7.0.21783.pak",
-        border_color="#6C63FF"
-    )
-
-    def log(msg: str):
-        log_box.value += f"\n• {msg}"
+    def add_log(message, color="#C7CBE0"):
+        log_list.controls.append(
+            ft.Row(
+                [ft.Container(width=6, height=6, bgcolor=color, border_radius=6),
+                 ft.Text(message, size=12, color="#D7DAE8", selectable=True, expand=True)],
+                vertical_alignment=ft.CrossAxisAlignment.START,
+                spacing=10,
+            )
+        )
+        if len(log_list.controls) > 80:
+            log_list.controls.pop(0)
         page.update()
 
-    def on_file_picked(e: ft.FilePickerResultEvent):
-        if e.files:
-            selected_pak["path"] = Path(e.files[0].path)
-            status_text.value = f"Выбран: {selected_pak['path'].name}"
-            status_text.color = "#00FFAA"
-            log(f"Загружен файл: {selected_pak['path']}")
+    def set_busy(value, message=None):
+        state["busy"] = value
+        for control in action_controls:
+            control.disabled = value
+        if message:
+            status.value = message
         page.update()
 
-    file_picker = ft.FilePicker(on_result=on_file_picked)
-    page.overlay.append(file_picker)
-
-    def unpack_pak(e):
-        if not selected_pak["path"]:
-            log("Ошибка: сначала выберите .pak файл!")
+    def on_file_result(e: ft.FilePickerResultEvent):
+        if not e.files:
+            add_log("Выбор файла отменён", "#F6C76A")
             return
-        try:
-            log("Начинаю распаковку...")
-            pak = TencentPakFile(selected_pak["path"])
-            out_dir = DOWNLOADS / f"Doxachkaa_Unpack_{selected_pak['path'].stem}"
-            ok, fail = pak.unpack_all(out_dir)
-            log(f"Готово! Извлечено: {ok}, сырых: {fail}")
-            log(f"Папка: {out_dir}")
-        except Exception as ex:
-            log(f"Ошибка распаковки: {ex}")
-
-    def inject_tag_and_build(e):
-        if not selected_pak["path"]:
-            log("Ошибка: сначала выберите .pak файл!")
+        chosen = e.files[0]
+        if not chosen.path:
+            add_log("Android не вернул путь к файлу. Попробуйте выбрать файл через системный проводник ещё раз.", "#F6C76A")
             return
+        path = Path(chosen.path)
+        if path.suffix.lower() != ".pak":
+            add_log("Нужен файл с расширением .pak", "#FF7373")
+            return
+        state["pak"] = path
+        selected_name.value = path.name
+        status.value = "Файл выбран и готов к операции"
+        status.color = "#62E6B2"
+        add_log(f"Выбран файл: {path.name}", "#62E6B2")
+        page.update()
+
+    def on_dir_result(e: ft.FilePickerResultEvent):
+        if not e.path:
+            add_log("Папка назначения не выбрана", "#F6C76A")
+            return
+        state["output"] = Path(e.path)
+        output_name.value = str(state["output"])
+        add_log(f"Папка сохранения: {e.path}", "#62E6B2")
+        page.update()
+
+    picker = ft.FilePicker(on_result=on_file_result)
+    folder_picker = ft.FilePicker(on_result=on_dir_result)
+    page.overlay.extend([picker, folder_picker])
+
+    def require_ready():
+        if not state["pak"]:
+            add_log("Сначала выберите исходный .pak файл", "#FF7373")
+            return False
+        if not state["pak"].is_file():
+            add_log("Исходный файл больше недоступен. Выберите его заново.", "#FF7373")
+            return False
+        if not state["output"]:
+            add_log("Сначала выберите папку сохранения", "#F6C76A")
+            return False
+        return True
+
+    def choose_file(_):
+        picker.pick_files(allow_multiple=False, allowed_extensions=["pak"], dialog_title="Выберите PAK-файл")
+
+    def choose_folder(_):
+        folder_picker.get_directory_path(dialog_title="Куда сохранить результат")
+
+    def unpack(_):
+        if state["busy"] or not require_ready():
+            return
+        set_busy(True, "Выполняется распаковка…")
         try:
-            new_tag = tag_input.value.strip()
-            if len(new_tag) > len(TARGET_PHRASE):
-                log(f"Ошибка: тег длиннее {len(TARGET_PHRASE)} символов!")
-                return
-
-            log("Читаю структуру PAK...")
-            pak = TencentPakFile(selected_pak["path"])
-            modified_files = {}
-            found_locres = False
-
-            for dir_path, files in pak.index.items():
-                for fn, entry in files.items():
-                    if fn.lower() == "game_patch_3.locres" and "ru" in str(dir_path).lower():
-                        rel = str(PurePath(dir_path) / fn).replace("\\", "/")
-                        raw_data = pak.extract_entry(entry, rel)
-                        old_b = TARGET_PHRASE.encode("utf-16le")
-                        new_b = new_tag.ljust(len(TARGET_PHRASE)).encode("utf-16le")
-                        if old_b in raw_data:
-                            modified_files[rel] = raw_data.replace(old_b, new_b)
-                            found_locres = True
-                            log(f"Тег вшит в: {rel}")
-
-            if not found_locres:
-                log("Внимание: строка в ru/Game_patch_3.locres не найдена, собираю без замены текста.")
-
-            out_pak = DOWNLOADS / out_name_input.value.strip()
-            total, mod_cnt = build_reconstructed_pak(pak, modified_files, out_pak)
-            log(f"УСПЕХ! Собрано файлов: {total} (изменено: {mod_cnt})")
-            log(f"Сохранено в: {out_pak}")
+            pak = TencentPakFile(state["pak"])
+            destination = state["output"] / f"Doxachkaa_Unpack_{state['pak'].stem}"
+            destination.mkdir(parents=True, exist_ok=True)
+            extracted, raw = pak.unpack_all(destination)
+            status.value = "Распаковка завершена"
+            status.color = "#62E6B2"
+            add_log(f"Распаковка завершена. Извлечено: {extracted}; сырых: {raw}", "#62E6B2")
+            add_log(f"Папка результата: {destination}")
         except Exception as ex:
-            log(f"Ошибка сборки: {ex}")
+            logging.exception("Unpack failed")
+            status.value = "Ошибка распаковки"
+            status.color = "#FF7373"
+            add_log(f"Ошибка: {type(ex).__name__}: {ex}", "#FF7373")
+        finally:
+            set_busy(False)
+
+    def rebuild_unchanged(_):
+        if state["busy"] or not require_ready():
+            return
+        set_busy(True, "Подготовка копии PAK…")
+        try:
+            source = state["pak"]
+            target = state["output"] / f"{source.stem}_repacked{source.suffix}"
+            pak = TencentPakFile(source)
+            total, changed = build_reconstructed_pak(pak, {}, target)
+            status.value = "Сборка завершена"
+            status.color = "#62E6B2"
+            add_log(f"Сборка завершена. Файлов: {total}; изменённых: {changed}", "#62E6B2")
+            add_log(f"Результат: {target}")
+        except Exception as ex:
+            logging.exception("Build failed")
+            status.value = "Ошибка сборки"
+            status.color = "#FF7373"
+            add_log(f"Ошибка: {type(ex).__name__}: {ex}", "#FF7373")
+        finally:
+            set_busy(False)
+
+    def card_button(text, icon, handler, filled=False):
+        return ft.Container(
+            content=ft.ElevatedButton(
+                text=text,
+                icon=icon,
+                on_click=handler,
+                height=54,
+                style=ft.ButtonStyle(
+                    bgcolor="#795BFA" if filled else "#202438",
+                    color="#FFFFFF",
+                    shape=ft.RoundedRectangleBorder(radius=15),
+                    elevation=0,
+                ),
+                expand=True,
+            ),
+            expand=True,
+        )
+
+    status = ft.Text("Выберите PAK-файл и папку назначения", size=12, color="#A6ABC2")
+    selected_name = ft.Text("Файл ещё не выбран", size=13, color="#DDE0F0", weight=ft.FontWeight.W_600)
+    output_name = ft.Text("Папка не выбрана", size=12, color="#A6ABC2", max_lines=2, overflow=ft.TextOverflow.ELLIPSIS)
+    log_list = ft.ListView(spacing=10, auto_scroll=True, height=175)
+
+    action_controls = []
+    pick_btn = ft.ElevatedButton("Выбрать .PAK файл", icon=ft.Icons.FOLDER_OPEN, on_click=choose_file, height=52,
+        style=ft.ButtonStyle(bgcolor="#795BFA", color="white", shape=ft.RoundedRectangleBorder(radius=14)))
+    folder_btn = ft.OutlinedButton("Выбрать папку сохранения", icon=ft.Icons.FOLDER, on_click=choose_folder, height=48,
+        style=ft.ButtonStyle(color="#D5CCFF", side=ft.BorderSide(1, "#51447E"), shape=ft.RoundedRectangleBorder(radius=14)))
+    build_btn = ft.ElevatedButton("Пересобрать без изменений", icon=ft.Icons.BUILD_CIRCLE, on_click=rebuild_unchanged, height=54,
+        style=ft.ButtonStyle(bgcolor="#292341", color="#D9D0FF", shape=ft.RoundedRectangleBorder(radius=14)))
+    unpack_btn = ft.ElevatedButton("Распаковать архив", icon=ft.Icons.UNARCHIVE, on_click=unpack, height=54,
+        style=ft.ButtonStyle(bgcolor="#202438", color="#E4E7F5", shape=ft.RoundedRectangleBorder(radius=14)))
+    action_controls = [pick_btn, folder_btn, build_btn, unpack_btn]
+
+    def panel(content, padding=16):
+        return ft.Container(content=content, padding=padding, bgcolor="#141827",
+            border=ft.border.all(1, "#252C42"), border_radius=20)
 
     page.add(
-        ft.Text("DOXACHKAA MASTER UTILITIES", size=22, weight=ft.FontWeight.BOLD, color="#6C63FF"),
-        ft.Text("PUBG Mobile PAK Repacker & Tag Injector", size=12, color="#8892B0"),
-        ft.Divider(color="#232946"),
-        status_text,
-        ft.ElevatedButton(
-            "1. Выбрать .pak файл",
-            icon=ft.Icons.FOLDER_OPEN,
-            on_click=lambda _: file_picker.pick_files(allowed_extensions=["pak"]),
-            width=400
-        ),
-        tag_input,
-        out_name_input,
-        ft.ElevatedButton(
-            "2. Вшить тег и собрать .pak",
-            icon=ft.Icons.BUILD,
-            bgcolor="#6C63FF",
-            color="white",
-            on_click=inject_tag_and_build,
-            width=400
-        ),
-        ft.OutlinedButton(
-            "3. Просто распаковать .pak в Download",
-            icon=ft.Icons.UNARCHIVE,
-            on_click=unpack_pak,
-            width=400
-        ),
-        ft.Divider(color="#232946"),
-        ft.Text("Лог операций:", weight=ft.FontWeight.BOLD, color="#A0A8C0"),
-        log_box
+        ft.Row([
+            ft.Container(content=ft.Icon(ft.Icons.TERMINAL_ROUNDED, color="#FFFFFF", size=27),
+                         bgcolor="#795BFA", padding=12, border_radius=15),
+            ft.Column([
+                ft.Text("DOXACHKAA", size=20, weight=ft.FontWeight.BOLD, color="#F3F1FF"),
+                ft.Text("MASTER UTILITIES  •  ANDROID", size=10, color="#9BA2BD", weight=ft.FontWeight.BOLD),
+            ], spacing=2, expand=True),
+            ft.Container(content=ft.Text("PRO", size=10, weight=ft.FontWeight.BOLD, color="#D8CEFF"),
+                         bgcolor="#302750", padding=ft.padding.symmetric(horizontal=11, vertical=7), border_radius=20),
+        ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        ft.Container(height=4),
+        ft.Text("Работа с PAK-файлами", size=23, weight=ft.FontWeight.BOLD, color="#F2F3FA"),
+        ft.Text("Выберите исходный файл и место для результата", size=12, color="#929AB5"),
+        panel(ft.Column([
+            ft.Row([ft.Icon(ft.Icons.INSERT_DRIVE_FILE_OUTLINED, color="#B8A7FF"),
+                    ft.Text("ИСХОДНЫЙ ФАЙЛ", size=10, color="#929AB5", weight=ft.FontWeight.BOLD)], spacing=9),
+            selected_name,
+            pick_btn,
+        ], spacing=12)),
+        panel(ft.Column([
+            ft.Row([ft.Icon(ft.Icons.SAVE_ALT_ROUNDED, color="#B8A7FF"),
+                    ft.Text("МЕСТО СОХРАНЕНИЯ", size=10, color="#929AB5", weight=ft.FontWeight.BOLD)], spacing=9),
+            output_name,
+            folder_btn,
+        ], spacing=12)),
+        ft.Text("ОПЕРАЦИИ", size=10, color="#929AB5", weight=ft.FontWeight.BOLD),
+        build_btn,
+        unpack_btn,
+        panel(ft.Column([
+            ft.Row([ft.Icon(ft.Icons.MONITOR_HEART_OUTLINED, color="#62E6B2"),
+                    ft.Text("СОСТОЯНИЕ", size=10, color="#929AB5", weight=ft.FontWeight.BOLD)], spacing=9),
+            status,
+        ], spacing=8)),
+        panel(ft.Column([
+            ft.Row([ft.Icon(ft.Icons.TERMINAL, color="#B8A7FF"),
+                    ft.Text("ЖУРНАЛ ОПЕРАЦИЙ", size=10, color="#929AB5", weight=ft.FontWeight.BOLD)], spacing=9),
+            log_list,
+        ], spacing=10)),
+        ft.Text("Doxachkaa Utilities  •  Android build", size=10, color="#626B87", text_align=ft.TextAlign.CENTER),
     )
+
 
 ft.app(target=main)
