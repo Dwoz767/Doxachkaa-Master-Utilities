@@ -1,6 +1,4 @@
-import os
-import base64
-import zipfile
+import os, base64, zipfile
 from pathlib import Path
 import flet as ft
 from cryptography.hazmat.primitives.asymmetric import x25519
@@ -9,209 +7,102 @@ from cryptography.hazmat.primitives import serialization
 APP_PWD = "Doxachka2001"
 OUT_DIR = Path("/storage/emulated/0/Download")
 
-
 def gen_wg_keys():
     priv_obj = x25519.X25519PrivateKey.generate()
-    priv_bytes = priv_obj.private_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PrivateFormat.Raw,
-        encryption_algorithm=serialization.NoEncryption(),
-    )
-    pub_bytes = priv_obj.public_key().public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw,
-    )
-    return base64.b64encode(priv_bytes).decode(), base64.b64encode(pub_bytes).decode()
+    priv_b = priv_obj.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption())
+    pub_b = priv_obj.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    return base64.b64encode(priv_b).decode(), base64.b64encode(pub_b).decode()
 
+def neon_title(txt, size=34):
+    return ft.Text(txt, size=size, weight=ft.FontWeight.W_900, color="#E066FF", style=ft.TextStyle(shadow=[ft.BoxShadow(blur_radius=14, color="#B800FF"), ft.BoxShadow(blur_radius=28, color="#8A00E6")]))
+
+def neon_btn(label, on_click, border="#FF1E56", glow="#FF0044", bg="#CC24072E", expand=False, width=None):
+    return ft.Container(
+        content=ft.ElevatedButton(label, on_click=on_click, bgcolor="transparent", color="#FFFFFF", style=ft.ButtonStyle(shadow_color="transparent", elevation=0, text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=13))),
+        bgcolor=bg, border=ft.border.all(2, border), border_radius=12, shadow=[ft.BoxShadow(blur_radius=14, spread_radius=1, color=glow)], expand=expand, width=width, alignment=ft.alignment.center
+    )
 
 def main(page: ft.Page):
-    page.title = "DOXAGUARD | @Doxa_pubg_cfg"
+    page.title = "DOXAGUARD | DOXACHKAA"
     page.theme_mode = ft.ThemeMode.DARK
-    page.bgcolor = "#0B0D14"
-    page.padding = 18
-    page.scroll = ft.ScrollMode.AUTO
+    page.bgcolor = "#060E22"
+    page.padding = 0
 
-    # Плавающий логотип / водяной знак в углу экрана
-    watermark = ft.Container(
-        content=ft.Text("🛡️ @Doxa_pubg_cfg", size=11, weight=ft.FontWeight.BOLD, color="#62E6B2"),
-        bgcolor="#161B29",
-        border=ft.border.all(1, "#2A334D"),
-        border_radius=20,
-        padding=ft.padding.symmetric(horizontal=10, vertical=4),
-        right=12,
-        top=12,
-    )
-    page.overlay.append(watermark)
+    page.overlay.append(ft.Container(content=ft.Text("🐉 @Doxa_pubg_cfg", size=11, weight=ft.FontWeight.BOLD, color="#FFFFFF"), bgcolor="#CC120624", border=ft.border.all(1.5, "#FF1E56"), border_radius=20, padding=ft.padding.symmetric(horizontal=10, vertical=4), shadow=[ft.BoxShadow(blur_radius=10, color="#FF0044")], right=12, top=12))
 
-    log_text = ft.Text("Готов к работе", size=12, color="#9BA3BC", selectable=True)
-
-    def show_msg(msg: str, color: str = "#62E6B2"):
-        log_text.value = msg
-        log_text.color = color
+    log_text = ft.Text("Готов к работе", size=12, color="#F2D9FF", selectable=True)
+    def show_msg(msg, color="#E066FF"):
+        log_text.value, log_text.color = msg, color
         page.update()
 
-    # Поля конструктора
-    priv_field = ft.TextField(label="PrivateKey клиента", border_color="#2A334D", text_size=12)
-    pub_client_field = ft.TextField(label="Ваш PublicKey (для сервера)", read_only=True, border_color="#2A334D", text_size=12)
-    srv_pub_field = ft.TextField(
-        label="PublicKey сервера",
-        value="bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-        border_color="#2A334D",
-        text_size=12,
-    )
-    ep_field = ft.TextField(
-        label="Endpoint сервера (IP:PORT)",
-        value="162.159.192.1:2408",
-        border_color="#2A334D",
-        text_size=12,
-    )
-    addr_field = ft.TextField(label="Address клиента", value="10.66.66.2/32", border_color="#2A334D", text_size=12)
-    mtu_field = ft.TextField(label="MTU (оптимизация 4G/игр)", value="1280", border_color="#2A334D", text_size=12)
-    name_field = ft.TextField(label="Имя файла", value="DoxaGuard", border_color="#2A334D", text_size=12)
-    preview_field = ft.TextField(
-        label="Готовый код VPN.conf",
-        multiline=True,
-        min_lines=7,
-        max_lines=10,
-        border_color="#2A334D",
-        text_size=11,
-    )
+    fbg, rneon = "#CC0A1128", "#FF1E56"
+    priv_f = ft.TextField(label="PrivateKey клиента", bgcolor=fbg, border_color=rneon, focused_border_color="#E066FF", text_size=12)
+    pub_f = ft.TextField(label="Ваш PublicKey (для сервера)", read_only=True, bgcolor=fbg, border_color=rneon, text_size=12)
+    srv_f = ft.TextField(label="PublicKey сервера", value="bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=", bgcolor=fbg, border_color=rneon, focused_border_color="#E066FF", text_size=12)
+    ep_f = ft.TextField(label="Endpoint (IP:PORT)", value="162.159.192.1:2408", bgcolor=fbg, border_color=rneon, focused_border_color="#E066FF", text_size=12)
+    addr_f = ft.TextField(label="Address", value="10.66.66.2/32", bgcolor=fbg, border_color=rneon, text_size=12, expand=True)
+    mtu_f = ft.TextField(label="MTU", value="1280", bgcolor=fbg, border_color=rneon, text_size=12, width=100)
+    name_f = ft.TextField(label="Имя файла", value="DoxaGuard", bgcolor=fbg, border_color=rneon, text_size=12)
+    prev_f = ft.TextField(label="Готовый код VPN.conf", multiline=True, min_lines=6, max_lines=9, bgcolor=fbg, border_color=rneon, text_size=11)
 
-    def on_generate_keys(_):
+    def on_gen(_):
         try:
-            priv, pub = gen_wg_keys()
-            priv_field.value = priv
-            pub_client_field.value = pub
-            show_msg("🔑 Новая пара ключей WireGuard сгенерирована!", "#62E6B2")
+            priv_f.value, pub_f.value = gen_wg_keys()
+            show_msg("🔑 Новая пара ключей сгенерирована!", "#E066FF")
         except Exception as ex:
-            show_msg(f"Ошибка генерации ключей: {ex}", "#FF7373")
+            show_msg(f"Ошибка: {ex}", "#FF4D6D")
 
-    def build_config_text():
-        if not priv_field.value.strip():
-            on_generate_keys(None)
-        return (
-            f"# Built with DoxaGuard | @Doxa_pubg_cfg\n"
-            f"[Interface]\n"
-            f"PrivateKey = {priv_field.value.strip()}\n"
-            f"Address = {addr_field.value.strip() or '10.66.66.2/32'}\n"
-            f"DNS = 1.1.1.1, 1.0.0.1\n"
-            f"MTU = {mtu_field.value.strip() or '1280'}\n\n"
-            f"[Peer]\n"
-            f"PublicKey = {srv_pub_field.value.strip()}\n"
-            f"Endpoint = {ep_field.value.strip()}\n"
-            f"AllowedIPs = 0.0.0.0/0\n"
-            f"PersistentKeepalive = 10\n"
-        )
-
-    def on_build_and_save(_):
+    def on_save(_):
         try:
-            conf_text = build_config_text()
-            preview_field.value = conf_text
+            if not priv_f.value.strip():
+                on_gen(None)
+            txt = f"# Built with DoxaGuard | DOXACHKAA | @Doxa_pubg_cfg\n[Interface]\nPrivateKey = {priv_f.value.strip()}\nAddress = {addr_f.value.strip() or '10.66.66.2/32'}\nDNS = 1.1.1.1, 1.0.0.1\nMTU = {mtu_f.value.strip() or '1280'}\n\n[Peer]\nPublicKey = {srv_f.value.strip()}\nEndpoint = {ep_f.value.strip()}\nAllowedIPs = 0.0.0.0/0\nPersistentKeepalive = 10\n"
+            prev_f.value = txt
             OUT_DIR.mkdir(parents=True, exist_ok=True)
-            fname = (name_field.value.strip() or "DoxaGuard").replace(".conf", "")
-            conf_path = OUT_DIR / f"{fname}.conf"
-            zip_path = OUT_DIR / f"{fname}_protected.zip"
-
-            conf_path.write_text(conf_text, encoding="utf-8")
-            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                zf.writestr(f"{fname}.conf", conf_text)
-
-            show_msg(
-                f"✅ Готово! Сохранено в Download:\n• {fname}.conf\n• {fname}_protected.zip",
-                "#62E6B2",
-            )
+            fn = (name_f.value.strip() or "DoxaGuard").replace(".conf", "")
+            (OUT_DIR / f"{fn}.conf").write_text(txt, encoding="utf-8")
+            with zipfile.ZipFile(OUT_DIR / f"{fn}_protected.zip", "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr(f"{fn}.conf", txt)
+            show_msg(f"✅ Сохранено в Download:\n• {fn}.conf\n• {fn}_protected.zip", "#E066FF")
         except Exception as ex:
-            show_msg(f"Ошибка сохранения: {ex}", "#FF7373")
+            show_msg(f"Ошибка сохранения: {ex}", "#FF4D6D")
 
-    def open_main_ui():
+    def bg_wrap(ctrl):
+        return ft.Stack([
+            ft.Image(src="bg.png", fit=ft.ImageFit.COVER, width=1080, height=2400, opacity=0.92),
+            ft.Container(content=ctrl, padding=14, gradient=ft.LinearGradient(begin=ft.alignment.top_center, end=ft.alignment.bottom_center, colors=["#44040B1C", "#AA040B1C"]), expand=True)
+        ], expand=True)
+
+    def open_main():
         page.clean()
-        page.add(
-            ft.Column(
-                [
-                    ft.Text("🛡️ DOXAGUARD", size=22, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
-                    ft.Text("Конструктор WireGuard / AmneziaWG • @Doxa_pubg_cfg", size=12, color="#8E96B0"),
-                    ft.Divider(color="#1E2436"),
-                    ft.Row(
-                        [
-                            ft.ElevatedButton(
-                                "🔑 Сгенерировать ключи",
-                                on_click=on_generate_keys,
-                                bgcolor="#1E263D",
-                                color="#FFFFFF",
-                                expand=True,
-                            ),
-                            ft.ElevatedButton(
-                                "⚡ Собрать VPN.conf",
-                                on_click=on_build_and_save,
-                                bgcolor="#6C5CE7",
-                                color="#FFFFFF",
-                                expand=True,
-                            ),
-                        ],
-                        spacing=10,
-                    ),
-                    priv_field,
-                    pub_client_field,
-                    srv_pub_field,
-                    ep_field,
-                    ft.Row([addr_field, mtu_field], spacing=10),
-                    name_field,
-                    preview_field,
-                    ft.Container(
-                        content=log_text,
-                        bgcolor="#131724",
-                        padding=12,
-                        border_radius=10,
-                        border=ft.border.all(1, "#232A40"),
-                    ),
-                ],
-                spacing=10,
-            )
+        frame = ft.Container(
+            content=ft.Column([
+                ft.Column([neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF")], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
+                ft.Divider(color="#FF1E56", height=10),
+                ft.Row([neon_btn("🔑 Ключи", on_gen, "#B800FF", "#9D00FF", "#CC1D0836", expand=True), neon_btn("⚡ Собрать VPN", on_save, "#FF1E56", "#FF0044", "#CC2B0618", expand=True)], spacing=10),
+                priv_f, pub_f, srv_f, ep_f,
+                ft.Row([addr_f, mtu_f], spacing=10),
+                name_f, prev_f,
+                ft.Container(content=log_text, bgcolor="#CC0A0F24", padding=12, border_radius=12, border=ft.border.all(1.5, "#FF1E56"), shadow=[ft.BoxShadow(blur_radius=10, color="#FF0044")])
+            ], spacing=10, scroll=ft.ScrollMode.AUTO),
+            padding=16, border_radius=18, bgcolor="#55060D21", border=ft.border.all(2, "#FF1E56"), shadow=[ft.BoxShadow(blur_radius=18, spread_radius=1, color="#FF0044")], expand=True
         )
-        on_generate_keys(None)
+        page.add(bg_wrap(frame))
+        on_gen(None)
 
-    # Экран входа по паролю
-    pwd_input = ft.TextField(
-        label="Введите пароль доступа",
-        password=True,
-        can_reveal_password=True,
-        border_color="#2A334D",
-    )
-    login_err = ft.Text("", color="#FF7373", size=12)
-
-    def check_login(_):
-        if pwd_input.value.strip() == APP_PWD:
-            open_main_ui()
+    pwd_in = ft.TextField(label="Введите пароль доступа", password=True, can_reveal_password=True, bgcolor=fbg, border_color=rneon, focused_border_color="#E066FF")
+    err_t = ft.Text("", color="#FF4D6D", size=12)
+    def login(_):
+        if pwd_in.value.strip() == APP_PWD:
+            open_main()
         else:
-            login_err.value = "❌ Неверный пароль!"
+            err_t.value = "❌ Неверный пароль!"
             page.update()
 
-    page.add(
-        ft.Container(
-            content=ft.Column(
-                [
-                    ft.Text("🛡️ DOXAGUARD v1.0", size=24, weight=ft.FontWeight.BOLD),
-                    ft.Text("@Doxa_pubg_cfg", size=13, color="#62E6B2"),
-                    pwd_input,
-                    ft.ElevatedButton(
-                        "Войти в конструктор",
-                        on_click=check_login,
-                        bgcolor="#6C5CE7",
-                        color="#FFFFFF",
-                        width=260,
-                    ),
-                    login_err,
-                ],
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=14,
-            ),
-            padding=24,
-            margin=ft.margin.only(top=60),
-            bgcolor="#131724",
-            border_radius=16,
-            border=ft.border.all(1, "#232A40"),
-        )
+    card = ft.Container(
+        content=ft.Column([neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v1.0 • @Doxa_pubg_cfg", size=12, color="#B8DCFF"), pwd_in, neon_btn("ВОЙТИ В DOXAGUARD", login, width=260), err_t], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=14),
+        padding=24, margin=ft.margin.only(top=70), bgcolor="#B3070E24", border_radius=20, border=ft.border.all(2.5, "#FF1E56"), shadow=[ft.BoxShadow(blur_radius=22, spread_radius=2, color="#FF0044")]
     )
+    page.add(bg_wrap(card))
 
-
-ft.app(target=main)
+ft.app(target=main, assets_dir="assets")
