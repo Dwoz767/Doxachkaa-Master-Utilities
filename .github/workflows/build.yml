@@ -1,4 +1,4 @@
-name: Build Doxachkaa UC APK
+name: Build DoxaGuard APK
 on:
   push:
     branches: [main, doxachkaa-uc]
@@ -19,8 +19,8 @@ jobs:
           flutter-version: '3.24.5'
           channel: stable
       - run: pip install flet==0.25.2
-      - run: flet build apk --project "Doxachkaa UC" --org com.doxachkaa.uc
+      - run: flet build apk --project "DoxaGuard" --org com.doxaguard
       - uses: actions/upload-artifact@v4
         with:
-          name: Doxachkaa_UC_APK
+          name: DoxaGuard_APK
           path: build/apk/app-release.apk
