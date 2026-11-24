@@ -649,6 +649,7 @@ class TencentPakFile:
                     f.write(data)
                 return True
             except Exception as ex:
+                if not getattr(self, "last_error", None): self.last_error = f"{f_rel} -> {type(ex).__name__}: {ex}"
                 if not hasattr(self, "_logged_err"):
                     self._logged_err = True
                     print(f"[UNPACK ERROR] {f_rel}: {type(ex).__name__}: {ex}")
