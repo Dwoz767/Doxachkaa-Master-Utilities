@@ -24,7 +24,7 @@ jobs:
       - name: Install Flet and build APK
         run: |
           pip install flet==0.25.2
-          flet build apk --flutter-version 3.24.5 --project "Doxachkaa Master Utilities"
+          flet build apk --project "Doxachkaa Master Utilities"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
