@@ -192,20 +192,23 @@ def main(page: ft.Page):
 
     abox.controls = [
         ft.Text("🛡️ АДМИН-ПАНЕЛЬ (1–8 РАНГ)", size=14, weight=ft.FontWeight.BOLD, color="#FF1E56"),
-        ft.Row([qid_in, qamt_in, ft.ElevatedButton("💳 Пополнить", on_click=lambda _: run_cmd(f"/Money id {qid_in.value} {qamt_in.value}₽"), bgcolor="#FF1E56", color="#FFFFFF")], wrap=True),
+        ft.Row([qid_in, qamt_in, ft.ElevatedButton("💳 Пополнить ₽", on_click=lambda _: run_cmd(f"/Money id {qid_in.value} {qamt_in.value}₽"), bgcolor="#FF1E56", color="#FFFFFF")], wrap=True),
         cmd_in,
         ft.ElevatedButton("▶ Выполнить", on_click=lambda _: run_cmd(cmd_in.value), bgcolor="#8A00E6", color="#FFFFFF"),
         ft.Container(content=log_txt, padding=10, bgcolor="#CC090D1F", border_radius=10, border=ft.border.all(1, "#B800FF"))
     ]
 
     body = ft.Column([
-        ft.Text("DOXACHKAA UC", size=30, weight=ft.FontWeight.W_900, color="#E066FF", style=ft.TextStyle(shadow=[ft.BoxShadow(blur_radius=14, color="#B800FF")])),
+        ft.GestureDetector(
+            content=ft.Text("DOXACHKAA UC", size=30, weight=ft.FontWeight.W_900, color="#E066FF", style=ft.TextStyle(shadow=[ft.BoxShadow(blur_radius=14, color="#B800FF")])),
+            on_tap=secret_tap,
+        ),
         hdr_txt, bal_txt,
         ft.Row([ft.ElevatedButton("➕ Новый ID", on_click=reg_id), sw_in, ft.ElevatedButton("OK", on_click=go_sw)], wrap=True),
-        ft.Container(content=wheel, alignment=ft.alignment.center, padding=10),
-        ft.Container(content=ft.ElevatedButton("🎡 КРУТИТЬ КОЛЕСО (60 UC)", on_click=spin, bgcolor="#FF1E56", color="#FFFFFF", width=260, height=46), alignment=ft.alignment.center),
+        ft.Container(content=wheel_box, alignment=ft.alignment.center, padding=6),
+        ft.Container(content=ft.ElevatedButton("🎡 КРУТИТЬ КОЛЕСО (60 ₽)", on_click=spin, bgcolor="#FF1E56", color="#FFFFFF", width=265, height=46), alignment=ft.alignment.center),
         ft.Container(content=res_txt, alignment=ft.alignment.center),
-        ft.Row([apwd_in, ft.ElevatedButton("🔐 Админка", on_click=open_adm, bgcolor="#B800FF", color="#FFFFFF")]),
+        adm_login_row,
         abox,
     ], spacing=10, scroll=ft.ScrollMode.AUTO)
 
