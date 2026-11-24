@@ -2,29 +2,38 @@ name: Build Doxachkaa APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install Flet and build APK
-        run: |
-          pip install flet==0.25.2
-          flet build apk --project "Doxachkaa Master Utilities"
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+
+      - name: Install Flet
+        run: pip install flet==0.25.2
+
+      - name: Build APK
+        run: flet build apk --project "Doxachkaa Master Utilities"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
