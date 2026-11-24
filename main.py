@@ -30,7 +30,10 @@ def main(page: ft.Page):
 
     page.overlay.append(ft.Container(content=ft.Text("🐉 @Doxa_pubg_cfg", size=11, weight=ft.FontWeight.BOLD, color="#FFFFFF"), bgcolor="#CC120624", border=ft.border.all(1.5, "#FF1E56"), border_radius=20, padding=ft.padding.symmetric(horizontal=10, vertical=4), shadow=[ft.BoxShadow(blur_radius=10, color="#FF0044")], right=12, top=12))
 
+    state = {"connected": False}
+    status_badge = ft.Text("🔴 СТАТУС: ОТКЛЮЧЕНО", size=13, weight=ft.FontWeight.BOLD, color="#FF4D6D")
     log_text = ft.Text("Готов к работе", size=12, color="#F2D9FF", selectable=True)
+
     def show_msg(msg, color="#E066FF"):
         log_text.value, log_text.color = msg, color
         page.update()
@@ -43,7 +46,7 @@ def main(page: ft.Page):
     addr_f = ft.TextField(label="Address", value="10.66.66.2/32", bgcolor=fbg, border_color=rneon, text_size=12, expand=True)
     mtu_f = ft.TextField(label="MTU", value="1280", bgcolor=fbg, border_color=rneon, text_size=12, width=100)
     name_f = ft.TextField(label="Имя файла", value="DoxaGuard", bgcolor=fbg, border_color=rneon, text_size=12)
-    prev_f = ft.TextField(label="Готовый код VPN.conf", multiline=True, min_lines=6, max_lines=9, bgcolor=fbg, border_color=rneon, text_size=11)
+    prev_f = ft.TextField(label="Готовый код VPN.conf", multiline=True, min_lines=5, max_lines=8, bgcolor=fbg, border_color=rneon, text_size=11)
 
     def on_gen(_):
         try:
@@ -52,20 +55,48 @@ def main(page: ft.Page):
         except Exception as ex:
             show_msg(f"Ошибка: {ex}", "#FF4D6D")
 
+    def save_files():
+        if not priv_f.value.strip():
+            on_gen(None)
+        a_val = addr_f.value.strip() or "10.66.66.2/32"
+        m_val = mtu_f.value.strip() or "1280"
+        txt = f"# Built with DoxaGuard | DOXACHKAA | @Doxa_pubg_cfg\n[Interface]\nPrivateKey = {priv_f.value.strip()}\nAddress = {a_val}\nDNS = 1.1.1.1, 1.0.0.1\nMTU = {m_val}\n\n[Peer]\nPublicKey = {srv_f.value.strip()}\nEndpoint = {ep_f.value.strip()}\nAllowedIPs = 0.0.0.0/0\nPersistentKeepalive = 10\n"
+        prev_f.value = txt
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
+        fn = (name_f.value.strip() or "DoxaGuard").replace(".conf", "")
+        conf_p = OUT_DIR / f"{fn}.conf"
+        conf_p.write_text(txt, encoding="utf-8")
+        with zipfile.ZipFile(OUT_DIR / f"{fn}_protected.zip", "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(f"{fn}.conf", txt)
+        return fn, conf_p
+
     def on_save(_):
         try:
-            if not priv_f.value.strip():
-                on_gen(None)
-            txt = f"# Built with DoxaGuard | DOXACHKAA | @Doxa_pubg_cfg\n[Interface]\nPrivateKey = {priv_f.value.strip()}\nAddress = {addr_f.value.strip() or '10.66.66.2/32'}\nDNS = 1.1.1.1, 1.0.0.1\nMTU = {mtu_f.value.strip() or '1280'}\n\n[Peer]\nPublicKey = {srv_f.value.strip()}\nEndpoint = {ep_f.value.strip()}\nAllowedIPs = 0.0.0.0/0\nPersistentKeepalive = 10\n"
-            prev_f.value = txt
-            OUT_DIR.mkdir(parents=True, exist_ok=True)
-            fn = (name_f.value.strip() or "DoxaGuard").replace(".conf", "")
-            (OUT_DIR / f"{fn}.conf").write_text(txt, encoding="utf-8")
-            with zipfile.ZipFile(OUT_DIR / f"{fn}_protected.zip", "w", zipfile.ZIP_DEFLATED) as zf:
-                zf.writestr(f"{fn}.conf", txt)
+            fn, _ = save_files()
             show_msg(f"✅ Сохранено в Download:\n• {fn}.conf\n• {fn}_protected.zip", "#E066FF")
         except Exception as ex:
             show_msg(f"Ошибка сохранения: {ex}", "#FF4D6D")
+
+    def on_toggle_vpn(e):
+        try:
+            if not state["connected"]:
+                fn, conf_p = save_files()
+                state["connected"] = True
+                vpn_switch.value = True
+                status_badge.value = "🟢 СТАТУС: АКТИВИРОВАНО (WIREGUARD)"
+                status_badge.color = "#00FFAA"
+                show_msg(f"🚀 Профиль {fn}.conf собран! Выберите WireGuard / AmneziaWG для включения туннеля.", "#00FFAA")
+                page.launch_url(f"file://{conf_p}")
+            else:
+                state["connected"] = False
+                vpn_switch.value = False
+                status_badge.value = "🔴 СТАТУС: ОТКЛЮЧЕНО"
+                status_badge.color = "#FF4D6D"
+                show_msg("⏹ Туннель переведён в режим отключения. Выключите тумблер в WireGuard.", "#FF4D6D")
+        except Exception as ex:
+            show_msg(f"Файл сохранён в Download. Откройте его в WireGuard ({ex})", "#E066FF")
+
+    vpn_switch = ft.Switch(value=False, active_color="#00FFAA", active_track_color="#0A3D2E", inactive_thumb_color="#FF1E56", inactive_track_color="#2B0618", on_change=on_toggle_vpn)
 
     def bg_wrap(ctrl):
         return ft.Stack([
@@ -75,10 +106,22 @@ def main(page: ft.Page):
 
     def open_main():
         page.clean()
+        vpn_panel = ft.Container(
+            content=ft.Row([
+                ft.Column([
+                    ft.Text("⚡ DOXAGUARD TUNNEL", size=14, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
+                    status_badge,
+                ], spacing=2, expand=True),
+                vpn_switch,
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            padding=12, border_radius=14, bgcolor="#CC140829",
+            border=ft.border.all(2, "#B800FF"),
+            shadow=[ft.BoxShadow(blur_radius=14, color="#9D00FF")]
+        )
         frame = ft.Container(
             content=ft.Column([
                 ft.Column([neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF")], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
-                ft.Divider(color="#FF1E56", height=10),
+                vpn_panel,
                 ft.Row([neon_btn("🔑 Ключи", on_gen, "#B800FF", "#9D00FF", "#CC1D0836", expand=True), neon_btn("⚡ Собрать VPN", on_save, "#FF1E56", "#FF0044", "#CC2B0618", expand=True)], spacing=10),
                 priv_f, pub_f, srv_f, ep_f,
                 ft.Row([addr_f, mtu_f], spacing=10),
