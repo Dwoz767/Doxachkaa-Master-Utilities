@@ -627,7 +627,7 @@ class TencentPakFile:
 
     def unpack_all(self, out_dir: Path, progress_callback=None, max_workers: int = 8) -> Tuple[int, int]:
         """High-speed multi-threaded unpack."""
-        clean_mp = self.mount_point.lstrip("./\\"); out_base = out_dir / clean_mp if clean_mp else out_dir
+        clean_mp = str(self.mount_point).lstrip("./\\"); out_base = out_dir / clean_mp if clean_mp else out_dir
         out_base.mkdir(parents=True, exist_ok=True)
         
         all_items = []

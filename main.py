@@ -107,7 +107,15 @@ def main(page: ft.Page):
         try:
             pak = TencentPakFile(state["pak"])
             destination = state["output"] / f"Doxachkaa_Unpack_{state['pak'].stem}"
-            destination.mkdir(parents=True, exist_ok=True)
+            try:
+                destination.mkdir(parents=True, exist_ok=True)
+                test_f = destination / ".write_test"
+                test_f.write_bytes(b"1")
+                test_f.unlink()
+            except PermissionError:
+                destination = Path("/storage/emulated/0/Download") / f"Doxachkaa_Unpack_{state['pak'].stem}"
+                destination.mkdir(parents=True, exist_ok=True)
+                add_log("Нет прав записи в выбранную папку (или спецсимволы в пути) — сохраняю в Download", "#F6C76A")
             extracted, raw = pak.unpack_all(destination)
             status.value = "Распаковка завершена"
             status.color = "#62E6B2"
