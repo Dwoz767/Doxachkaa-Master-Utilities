@@ -3,4 +3,3 @@ pycryptodome
 zstandard
 gmalg==1.1.2
 cryptography
-opencv-python-headless

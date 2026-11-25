@@ -166,10 +166,32 @@ def main(page: ft.Page):
         state["pick_mode"] = "conf"
         file_picker.pick_files(allow_multiple=False, allowed_extensions=["conf", "zip", "txt"])
 
+    qr_input = ft.TextField(label="Вставьте текст из QR-кода или буфера", multiline=True, min_lines=4, max_lines=7, bgcolor="#CC0A1128", border_color="#B800FF", text_size=12)
+    def apply_qr_dialog(_):
+        qr_dlg.open = False
+        if apply_config_text(qr_input.value or "", "DoxaGuard_QR"):
+            show_msg("📷 Конфиг из QR-кода успешно загружен!", "#00FFAA")
+        page.update()
+
+    qr_dlg = ft.AlertDialog(
+        title=ft.Text("📷 Сканировать / Вставить QR", size=16, weight=ft.FontWeight.BOLD, color="#E066FF"),
+        content=ft.Column([
+            ft.Text("Отсканируйте QR камерой телефона, скопируйте текст и вставьте ниже:", size=12, color="#B8DCFF"),
+            qr_input
+        ], tight=True, spacing=8),
+        actions=[
+            ft.TextButton("Отмена", on_click=lambda _: setattr(qr_dlg, "open", False) or page.update()),
+            ft.ElevatedButton("Загрузить", bgcolor="#FF1E56", color="#FFFFFF", on_click=apply_qr_dialog)
+        ],
+        bgcolor="#0A1128"
+    )
+    page.overlay.append(qr_dlg)
+
     def start_import_qr(_):
         close_import_sheet()
-        state["pick_mode"] = "qr"
-        file_picker.pick_files(allow_multiple=False, file_type=ft.FilePickerFileType.IMAGE)
+        qr_input.value = ""
+        qr_dlg.open = True
+        page.update()
 
     def sheet_item(icon_txt, title_txt, sub_txt, on_tap, accent="#B800FF"):
         return ft.Container(
