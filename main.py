@@ -421,10 +421,11 @@ def main(page: ft.Page):
         tab0_btn.on_click = lambda _: switch_tab(0)
         tab1_btn.on_click = lambda _: switch_tab(1)
 
-        nav = ft.Container(content=ft.Row(list((tab0_btn, tab1_btn)), spacing=8), padding=6, border_radius=14, bgcolor="#CC0A1128", border=ft.border.all(1.5, "#B800FF"))
-        header = ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.2 PRO • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF"))), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
+        nav = ft.Container(content=ft.Row(list((tab0_btn, tab1_btn)), spacing=8), height=54, padding=6, border_radius=14, bgcolor="#CC0A1128", border=ft.border.all(1.5, "#B800FF"))
+        header = ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.3 PRO • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF"))), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
+        scroll_body = ft.Column(list((vpn_view, fps_view)), spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
 
-        page.add(bg_wrap(ft.Container(content=ft.Column(list((header, nav, vpn_view, fps_view)), spacing=10, scroll=ft.ScrollMode.AUTO), padding=16, border_radius=18, bgcolor="#55060D21", border=ft.border.all(2, "#FF1E56"), expand=True)))
+        page.add(bg_wrap(ft.Container(content=ft.Column(list((header, nav, scroll_body)), spacing=10, expand=True), padding=16, border_radius=18, bgcolor="#55060D21", border=ft.border.all(2, "#FF1E56"), expand=True)))
         on_gen(None)
         refresh_tunnels()
 
