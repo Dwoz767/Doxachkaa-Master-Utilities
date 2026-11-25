@@ -106,18 +106,45 @@ def run_shizuku_cmd(shell_cmd):
         return False, str(ex)
 
 def process_fps_unlock(pkg, fps, scheme):
-    FPS_OUT_DIR.mkdir(parents=True, exist_ok=True)
-    ip, sp, pn = FPS_OUT_DIR / "UserCustom.ini", FPS_OUT_DIR / "Active.sav", f"game_patch_4.7.0.99{fps}.pak"
-    pp = FPS_OUT_DIR / pn
-    ip.write_text(build_user_custom_ini(fps), encoding="utf-8")
-    sp.write_bytes(build_active_sav(fps))
-    pp.write_bytes(build_game_patch_pak(fps))
-    if scheme == "Save":
-        return True, f"💾 Комплект ({fps} FPS: UserCustom.ini + Active.sav + {pn}) сохранён в Download/DoxaGuard_FPS/"
-    bg = f"/storage/emulated/0/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved"
-    cmd = f"mkdir -p '{bg}/Config/Android' '{bg}/SaveGames' '{bg}/Paks' && rm -f '{bg}/Paks/game_patch_3.6.0.99'*.pak '{bg}/Paks/game_patch_4.7.0.99'*.pak && cp '{ip}' '{bg}/Config/Android/UserCustom.ini' && cp '{sp}' '{bg}/SaveGames/Active.sav' && cp '{pp}' '{bg}/Paks/{pn}' && chmod 666 '{bg}/Config/Android/UserCustom.ini' '{bg}/SaveGames/Active.sav' '{bg}/Paks/{pn}' && settings put system peak_refresh_rate {float(fps)} && settings put system min_refresh_rate {float(fps)}"
-    ok, msg = run_shizuku_cmd(cmd)
-    return (True, f"✅ APPLY ({fps} FPS): UserCustom.ini + Active.sav + {pn} залиты через Shizuku!") if ok else (False, f"⚠️ Файлы созданы, но Shizuku: {msg}")
+    try:
+        work_dir = Path("/data/data/com.doxaguard.doxaguard/cache/fps_build")
+        if not work_dir.parent.exists():
+            work_dir = Path.cwd() / "fps_build"
+        work_dir.mkdir(parents=True, exist_ok=True)
+        pn = f"game_patch_4.7.0.99{fps}.pak"
+        ip, sp, pp = work_dir / "UserCustom.ini", work_dir / "Active.sav", work_dir / pn
+        ip.write_text(build_user_custom_ini(fps), encoding="utf-8")
+        sp.write_bytes(build_active_sav(fps))
+        pp.write_bytes(build_game_patch_pak(fps))
+        os.chmod(ip, 0o666); os.chmod(sp, 0o666); os.chmod(pp, 0o666)
+
+        dl_dir = "/storage/emulated/0/Download/DoxaGuard_FPS"
+        copy_dl = f"mkdir -p '{dl_dir}' && rm -f '{dl_dir}/game_patch_'*.pak && cp '{ip}' '{dl_dir}/UserCustom.ini' && cp '{sp}' '{dl_dir}/Active.sav' && cp '{pp}' '{dl_dir}/{pn}'"
+        if scheme == "Save":
+            ok, msg = run_shizuku_cmd(copy_dl)
+            if not ok:
+                FPS_OUT_DIR.mkdir(parents=True, exist_ok=True)
+                (FPS_OUT_DIR / "UserCustom.ini").write_bytes(ip.read_bytes())
+                (FPS_OUT_DIR / "Active.sav").write_bytes(sp.read_bytes())
+                (FPS_OUT_DIR / pn).write_bytes(pp.read_bytes())
+            return True, f"💾 Сохранено в Download/DoxaGuard_FPS/:\n• {pn}\n• Active.sav\n• UserCustom.ini"
+
+        bg = f"/storage/emulated/0/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved"
+        cmd = (
+            f"{copy_dl} && "
+            f"mkdir -p '{bg}/Config/Android' '{bg}/SaveGames' '{bg}/Paks' && "
+            f"rm -f '{bg}/Paks/game_patch_3.6.0.99'*.pak '{bg}/Paks/game_patch_4.7.0.99'*.pak && "
+            f"cp '{ip}' '{bg}/Config/Android/UserCustom.ini' && "
+            f"cp '{sp}' '{bg}/SaveGames/Active.sav' && "
+            f"cp '{pp}' '{bg}/Paks/{pn}' && "
+            f"chmod 666 '{bg}/Config/Android/UserCustom.ini' '{bg}/SaveGames/Active.sav' '{bg}/Paks/{pn}' && "
+            f"settings put system peak_refresh_rate {float(fps)} && "
+            f"settings put system min_refresh_rate {float(fps)}"
+        )
+        ok, msg = run_shizuku_cmd(cmd)
+        return (True, f"✅ APPLY ({fps} FPS): {pn} + Active.sav + UserCustom.ini залиты в PUBG и Download/DoxaGuard_FPS!") if ok else (False, f"⚠️ Ошибка Shizuku: {msg}")
+    except Exception as ex:
+        return False, f"❌ Ошибка: {ex}" 
 
 def neon_title(txt, size=34):
     return ft.Text(txt, size=size, weight=ft.FontWeight.W_900, color="#E066FF", style=ft.TextStyle(shadow=list((ft.BoxShadow(blur_radius=14, color="#B800FF"), ft.BoxShadow(blur_radius=28, color="#8A00E6")))))
@@ -356,6 +383,13 @@ def main(page: ft.Page):
 
     shizuku_pill.on_click = check_shizuku
 
+    def launch_pubg_now():
+        pkg = PUBG_PACKAGES.get(st.get("ver"))
+        ok, out = run_shizuku_cmd(f"am start -n {pkg}/com.epicgames.ue4.SplashActivity || monkey -p {pkg} 1")
+        fps_log.value = f"🎮 Запуск {st.get('ver')} ({pkg})..." if ok else f"⚠️ Не удалось запустить {pkg}: {out}"
+        fps_log.color = "#00FFAA" if ok else "#FF4D6D"
+        page.update()
+
     def on_apply_fps(_):
         ok, msg = process_fps_unlock(PUBG_PACKAGES.get(st.get("ver")), st.get("fps"), st.get("scheme"))
         fps_log.value, fps_log.color = msg, "#00FFAA" if ok else "#FF4D6D"
@@ -396,7 +430,7 @@ def main(page: ft.Page):
             ft.Text("Select Files Scheme", size=13, weight=ft.FontWeight.BOLD, color="#99CCFF"),
             ft.Row(list((make_scheme_pill("Apply", "📂 Apply (Shizuku)"), make_scheme_pill("Save", "💾 Save"))), spacing=8),
             ft.Container(content=ft.ElevatedButton(content=apply_btn_lbl, on_click=on_apply_fps, bgcolor="transparent", style=ft.ButtonStyle(shadow_color="transparent", elevation=0)), bgcolor="#CC0A2E24", border=ft.border.all(2, "#00FFAA"), border_radius=12, shadow=list((ft.BoxShadow(blur_radius=14, color="#00CC88"),)), alignment=ft.alignment.center, ink=True),
-            ft.Container(content=ft.ElevatedButton(content=launch_btn_lbl, on_click=lambda _: run_shizuku_cmd(f"monkey -p {PUBG_PACKAGES.get(st.get('ver'))} -c android.intent.category.LAUNCHER 1"), bgcolor="transparent", style=ft.ButtonStyle(shadow_color="transparent", elevation=0)), bgcolor="#CC2B0618", border=ft.border.all(2, "#FF1E56"), border_radius=12, shadow=list((ft.BoxShadow(blur_radius=14, color="#FF0044"),)), alignment=ft.alignment.center, ink=True),
+            ft.Container(content=ft.ElevatedButton(content=launch_btn_lbl, on_click=lambda _: launch_pubg_now(), bgcolor="transparent", style=ft.ButtonStyle(shadow_color="transparent", elevation=0)), bgcolor="#CC2B0618", border=ft.border.all(2, "#FF1E56"), border_radius=12, shadow=list((ft.BoxShadow(blur_radius=14, color="#FF0044"),)), alignment=ft.alignment.center, ink=True),
             ft.Container(content=fps_log, bgcolor="#CC0A0F24", padding=12, border_radius=12, border=ft.border.all(1.5, "#00FFAA"))
         )), spacing=10, visible=False)
 
@@ -419,7 +453,7 @@ def main(page: ft.Page):
         tab1_btn.on_click = lambda _: switch_tab(1)
 
         nav = ft.Container(content=ft.Row(list((tab0_btn, tab1_btn)), spacing=8), height=54, padding=6, border_radius=14, bgcolor="#CC0A1128", border=ft.border.all(1.5, "#B800FF"))
-        header = ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.4 PRO • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF"))), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
+        header = ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.5 PRO • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF"))), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
         scroll_body = ft.Column(list((vpn_view, fps_view)), spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
 
         page.add(bg_wrap(ft.Container(content=ft.Column(list((header, nav, scroll_body)), spacing=10, expand=True), padding=16, border_radius=18, bgcolor="#55060D21", border=ft.border.all(2, "#FF1E56"), expand=True)))
