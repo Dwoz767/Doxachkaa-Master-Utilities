@@ -4,6 +4,12 @@ import flet as ft
 from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives import serialization
 
+try:
+    import cv2
+    HAS_CV2 = True
+except Exception:
+    HAS_CV2 = False
+
 APP_PWD = "Doxachka2001"
 OUT_DIR = Path("/storage/emulated/0/Download")
 
@@ -12,6 +18,28 @@ def gen_wg_keys():
     priv_b = priv_obj.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption())
     pub_b = priv_obj.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
     return base64.b64encode(priv_b).decode(), base64.b64encode(pub_b).decode()
+
+def pub_from_priv(priv_b64: str) -> str:
+    try:
+        raw = base64.b64decode(priv_b64.strip())
+        if len(raw) == 32:
+            priv_obj = x25519.X25519PrivateKey.from_private_bytes(raw)
+            pub_b = priv_obj.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+            return base64.b64encode(pub_b).decode()
+    except Exception:
+        pass
+    return ""
+
+def parse_wg_config(text: str) -> dict:
+    data = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or line.startswith(";") or line.startswith("["):
+            continue
+        if "=" in line:
+            k, v = line.split("=", 1)
+            data[k.strip().lower()] = v.strip()
+    return data
 
 def neon_title(txt, size=34):
     return ft.Text(txt, size=size, weight=ft.FontWeight.W_900, color="#E066FF", style=ft.TextStyle(shadow=[ft.BoxShadow(blur_radius=14, color="#B800FF"), ft.BoxShadow(blur_radius=28, color="#8A00E6")]))
@@ -30,7 +58,7 @@ def main(page: ft.Page):
 
     page.overlay.append(ft.Container(content=ft.Text("🐉 @Doxa_pubg_cfg", size=11, weight=ft.FontWeight.BOLD, color="#FFFFFF"), bgcolor="#CC120624", border=ft.border.all(1.5, "#FF1E56"), border_radius=20, padding=ft.padding.symmetric(horizontal=10, vertical=4), shadow=[ft.BoxShadow(blur_radius=10, color="#FF0044")], right=12, top=12))
 
-    state = {"connected": False}
+    state = {"connected": False, "pick_mode": "conf"}
     status_badge = ft.Text("🔴 СТАТУС: ОТКЛЮЧЕНО", size=13, weight=ft.FontWeight.BOLD, color="#FF4D6D")
     log_text = ft.Text("Готов к работе", size=12, color="#F2D9FF", selectable=True)
 
@@ -48,12 +76,138 @@ def main(page: ft.Page):
     name_f = ft.TextField(label="Имя файла", value="DoxaGuard", bgcolor=fbg, border_color=rneon, text_size=12)
     prev_f = ft.TextField(label="Готовый код VPN.conf", multiline=True, min_lines=5, max_lines=8, bgcolor=fbg, border_color=rneon, text_size=11)
 
+    def apply_config_text(raw_text: str, profile_name: str = ""):
+        cfg = parse_wg_config(raw_text)
+        if not cfg:
+            show_msg("❌ Не удалось распознать конфиг VPN!", "#FF4D6D")
+            return False
+        if "privatekey" in cfg:
+            priv_f.value = cfg["privatekey"]
+            derived_pub = pub_from_priv(cfg["privatekey"])
+            if derived_pub:
+                pub_f.value = derived_pub
+        if "publickey" in cfg:
+            srv_f.value = cfg["publickey"]
+        if "endpoint" in cfg:
+            ep_f.value = cfg["endpoint"]
+        if "address" in cfg:
+            addr_f.value = cfg["address"]
+        if "mtu" in cfg:
+            mtu_f.value = cfg["mtu"]
+        if profile_name:
+            name_f.value = profile_name.replace(".conf", "").replace(".zip", "")
+        prev_f.value = raw_text.strip()
+        page.update()
+        return True
+
     def on_gen(_):
         try:
             priv_f.value, pub_f.value = gen_wg_keys()
             show_msg("🔑 Новая пара ключей сгенерирована!", "#E066FF")
         except Exception as ex:
             show_msg(f"Ошибка: {ex}", "#FF4D6D")
+
+    def on_create_scratch(_):
+        close_import_sheet()
+        priv_f.value, pub_f.value = gen_wg_keys()
+        srv_f.value = ""
+        ep_f.value = ""
+        addr_f.value = "10.66.66.2/32"
+        mtu_f.value = "1280"
+        name_f.value = "DoxaGuard_New"
+        prev_f.value = ""
+        show_msg("✨ Создан новый пустой профиль. Заполните поля и нажмите «Собрать VPN».", "#00FFAA")
+
+    def on_file_picked(e: ft.FilePickerResultEvent):
+        if not e.files:
+            return
+        f_path = e.files[0].path
+        if not f_path:
+            show_msg("❌ Не удалось получить путь к файлу.", "#FF4D6D")
+            return
+        if state["pick_mode"] == "qr":
+            if not HAS_CV2:
+                show_msg("❌ Модуль сканера QR не загружен.", "#FF4D6D")
+                return
+            try:
+                img = cv2.imread(f_path)
+                decoded_text, _, _ = cv2.QRCodeDetector().detectAndDecode(img)
+                if decoded_text and apply_config_text(decoded_text, "DoxaGuard_QR"):
+                    show_msg("📷 QR-код успешно расшифрован и загружен!", "#00FFAA")
+                else:
+                    show_msg("❌ QR-код не найден на изображении.", "#FF4D6D")
+            except Exception as ex:
+                show_msg(f"❌ Ошибка чтения QR: {ex}", "#FF4D6D")
+            return
+        try:
+            p = Path(f_path)
+            if p.suffix.lower() == ".zip":
+                with zipfile.ZipFile(p, "r") as zf:
+                    conf_names = [n for n in zf.namelist() if n.lower().endswith(".conf") and not n.startswith("__MACOSX")]
+                    if not conf_names:
+                        show_msg("❌ Внутри архива нет файлов .conf!", "#FF4D6D")
+                        return
+                    content = zf.read(conf_names[0]).decode("utf-8", errors="ignore")
+                    if apply_config_text(content, Path(conf_names[0]).stem):
+                        extra = f" (всего в архиве: {len(conf_names)})" if len(conf_names) > 1 else ""
+                        show_msg(f"📦 Импортирован: {Path(conf_names[0]).name}{extra}", "#00FFAA")
+            else:
+                content = p.read_text(encoding="utf-8", errors="ignore")
+                if apply_config_text(content, p.stem):
+                    show_msg(f"📂 Файл {p.name} успешно импортирован!", "#00FFAA")
+        except Exception as ex:
+            show_msg(f"❌ Ошибка импорта: {ex}", "#FF4D6D")
+
+    file_picker = ft.FilePicker(on_result=on_file_picked)
+    page.overlay.append(file_picker)
+
+    def start_import_file(_):
+        close_import_sheet()
+        state["pick_mode"] = "conf"
+        file_picker.pick_files(allow_multiple=False, allowed_extensions=["conf", "zip", "txt"])
+
+    def start_import_qr(_):
+        close_import_sheet()
+        state["pick_mode"] = "qr"
+        file_picker.pick_files(allow_multiple=False, file_type=ft.FilePickerFileType.IMAGE)
+
+    def sheet_item(icon_txt, title_txt, sub_txt, on_tap, accent="#B800FF"):
+        return ft.Container(
+            content=ft.Row([
+                ft.Text(icon_txt, size=24),
+                ft.Column([
+                    ft.Text(title_txt, size=14, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
+                    ft.Text(sub_txt, size=11, color="#B8DCFF"),
+                ], spacing=2, expand=True),
+                ft.Icon(ft.Icons.CHEVRON_RIGHT, color=accent)
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            padding=12, border_radius=12, bgcolor="#CC120624", border=ft.border.all(1.5, accent), on_click=on_tap
+        )
+
+    import_sheet = ft.BottomSheet(
+        content=ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("➕ ДОБАВИТЬ ТУННЕЛЬ", size=16, weight=ft.FontWeight.W_900, color="#E066FF"),
+                    ft.IconButton(ft.Icons.CLOSE, icon_color="#FF4D6D", on_click=lambda _: close_import_sheet())
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                sheet_item("📂", "Импорт из файла или архива", "Загрузить готовый .conf или .zip архив", start_import_file, "#FF1E56"),
+                sheet_item("📷", "Сканировать QR-код", "Выбрать фото / скриншот с QR-кодом конфига", start_import_qr, "#B800FF"),
+                sheet_item("✨", "Создать с нуля", "Сгенерировать новые ключи и настроить вручную", on_create_scratch, "#00FFAA"),
+            ], tight=True, spacing=10),
+            padding=18, bgcolor="#0A1128", border_radius=ft.border_radius.only(top_left=22, top_right=22), border=ft.border.all(2, "#FF1E56")
+        ),
+        bgcolor="#0A1128"
+    )
+    page.overlay.append(import_sheet)
+
+    def open_import_sheet(_):
+        import_sheet.open = True
+        page.update()
+
+    def close_import_sheet():
+        import_sheet.open = False
+        page.update()
 
     def save_files():
         if not priv_f.value.strip():
@@ -83,18 +237,18 @@ def main(page: ft.Page):
                 fn, conf_p = save_files()
                 state["connected"] = True
                 vpn_switch.value = True
-                status_badge.value = "🟢 СТАТУС: АКТИВИРОВАНО (WIREGUARD)"
+                status_badge.value = "🟢 СТАТУС: АКТИВИРОВАНО (DOXAGUARD)"
                 status_badge.color = "#00FFAA"
-                show_msg(f"🚀 Профиль {fn}.conf собран! Выберите WireGuard / AmneziaWG для включения туннеля.", "#00FFAA")
+                show_msg(f"🚀 Профиль {fn}.conf собран и активирован в DoxaGuard!", "#00FFAA")
                 page.launch_url(f"file://{conf_p}")
             else:
                 state["connected"] = False
                 vpn_switch.value = False
                 status_badge.value = "🔴 СТАТУС: ОТКЛЮЧЕНО"
                 status_badge.color = "#FF4D6D"
-                show_msg("⏹ Туннель переведён в режим отключения. Выключите тумблер в WireGuard.", "#FF4D6D")
+                show_msg("⏹ Туннель DoxaGuard переведён в режим отключения.", "#FF4D6D")
         except Exception as ex:
-            show_msg(f"Файл сохранён в Download. Откройте его в WireGuard ({ex})", "#E066FF")
+            show_msg(f"Файл сохранён в Download ({ex})", "#E066FF")
 
     vpn_switch = ft.Switch(value=False, active_color="#00FFAA", active_track_color="#0A3D2E", inactive_thumb_color="#FF1E56", inactive_track_color="#2B0618", on_change=on_toggle_vpn)
 
@@ -106,6 +260,9 @@ def main(page: ft.Page):
 
     def open_main():
         page.clean()
+        page.floating_action_button = ft.FloatingActionButton(
+            icon=ft.Icons.ADD, bgcolor="#FF1E56", foreground_color="#FFFFFF", shape=ft.CircleBorder(), on_click=open_import_sheet, tooltip="Импорт / Создать профиль"
+        )
         vpn_panel = ft.Container(
             content=ft.Row([
                 ft.Column([
@@ -114,19 +271,21 @@ def main(page: ft.Page):
                 ], spacing=2, expand=True),
                 vpn_switch,
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=12, border_radius=14, bgcolor="#CC140829",
-            border=ft.border.all(2, "#B800FF"),
-            shadow=[ft.BoxShadow(blur_radius=14, color="#9D00FF")]
+            padding=12, border_radius=14, bgcolor="#CC140829", border=ft.border.all(2, "#B800FF"), shadow=[ft.BoxShadow(blur_radius=14, color="#9D00FF")]
         )
         frame = ft.Container(
             content=ft.Column([
                 ft.Column([neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF")], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
                 vpn_panel,
-                ft.Row([neon_btn("🔑 Ключи", on_gen, "#B800FF", "#9D00FF", "#CC1D0836", expand=True), neon_btn("⚡ Собрать VPN", on_save, "#FF1E56", "#FF0044", "#CC2B0618", expand=True)], spacing=10),
+                ft.Row([
+                    neon_btn("🔑 Ключи", on_gen, "#B800FF", "#9D00FF", "#CC1D0836", expand=True),
+                    neon_btn("⚡ Собрать VPN", on_save, "#FF1E56", "#FF0044", "#CC2B0618", expand=True),
+                ], spacing=10),
                 priv_f, pub_f, srv_f, ep_f,
                 ft.Row([addr_f, mtu_f], spacing=10),
                 name_f, prev_f,
-                ft.Container(content=log_text, bgcolor="#CC0A0F24", padding=12, border_radius=12, border=ft.border.all(1.5, "#FF1E56"), shadow=[ft.BoxShadow(blur_radius=10, color="#FF0044")])
+                ft.Container(content=log_text, bgcolor="#CC0A0F24", padding=12, border_radius=12, border=ft.border.all(1.5, "#FF1E56"), shadow=[ft.BoxShadow(blur_radius=10, color="#FF0044")]),
+                ft.Container(height=60)
             ], spacing=10, scroll=ft.ScrollMode.AUTO),
             padding=16, border_radius=18, bgcolor="#55060D21", border=ft.border.all(2, "#FF1E56"), shadow=[ft.BoxShadow(blur_radius=18, spread_radius=1, color="#FF0044")], expand=True
         )
