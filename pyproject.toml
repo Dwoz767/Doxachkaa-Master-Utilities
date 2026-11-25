@@ -3,11 +3,9 @@ name = "DoxaGuard"
 version = "3.2.0"
 description = "DoxaGuard Gaming VPN & FPS Unlocker"
 
-[tool.flet.android]
-permission = [
-    "android.permission.INTERNET",
-    "android.permission.READ_EXTERNAL_STORAGE",
-    "android.permission.WRITE_EXTERNAL_STORAGE",
-    "android.permission.MANAGE_EXTERNAL_STORAGE",
-    "moe.shizuku.manager.permission.API_V23",
-]
+[tool.flet.android.permission]
+"android.permission.INTERNET" = true
+"android.permission.READ_EXTERNAL_STORAGE" = true
+"android.permission.WRITE_EXTERNAL_STORAGE" = true
+"android.permission.MANAGE_EXTERNAL_STORAGE" = true
+"moe.shizuku.manager.permission.API_V23" = true
