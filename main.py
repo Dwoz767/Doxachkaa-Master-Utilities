@@ -95,7 +95,7 @@ def run_shizuku_cmd(shell_cmd):
         rish_txt = re.sub(r"PKG=.*", "PKG=com.doxaguard.doxaguard", rish_txt)
         lr.write_text(rish_txt, encoding="utf-8")
         dex_src = rish.parent / "rish_shizuku.dex"
-        if dex_src.exists():
+        if dex_src.exists() and not ld.exists():
             ld.write_bytes(dex_src.read_bytes())
         os.chmod(lr, 0o755)
         env = os.environ.copy()
@@ -138,10 +138,12 @@ def process_fps_unlock(pkg, fps, scheme):
         if scheme == "Save":
             ok, msg = run_shizuku_cmd(copy_dl)
             if not ok:
-                FPS_OUT_DIR.mkdir(parents=True, exist_ok=True)
-                (FPS_OUT_DIR / "UserCustom.ini").write_bytes(ip.read_bytes())
-                (FPS_OUT_DIR / "Active.sav").write_bytes(sp.read_bytes())
-                (FPS_OUT_DIR / pn).write_bytes(pp.read_bytes())
+                app_ext = Path("/storage/emulated/0/Android/data/com.doxaguard.doxaguard/files/DoxaGuard_FPS")
+                app_ext.mkdir(parents=True, exist_ok=True)
+                (app_ext / "UserCustom.ini").write_bytes(ip.read_bytes())
+                (app_ext / "Active.sav").write_bytes(sp.read_bytes())
+                (app_ext / pn).write_bytes(pp.read_bytes())
+                return True, f"💾 Сохранено в Android/data/com.doxaguard.doxaguard/files/DoxaGuard_FPS/:\n• {pn}\n• Active.sav\n• UserCustom.ini" 
             return True, f"💾 Сохранено в Download/DoxaGuard_FPS/:\n• {pn}\n• Active.sav\n• UserCustom.ini"
 
         bg = f"/storage/emulated/0/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved"
@@ -474,7 +476,7 @@ def main(page: ft.Page):
         tab1_btn.on_click = lambda _: switch_tab(1)
 
         nav = ft.Container(content=ft.Row(list((tab0_btn, tab1_btn)), spacing=8), height=54, padding=6, border_radius=14, bgcolor="#CC0A1128", border=ft.border.all(1.5, "#B800FF"))
-        header = ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.5 PRO • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF"))), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
+        header = ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.6 PRO • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF"))), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
         scroll_body = ft.Column(list((vpn_view, fps_view)), spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
 
         page.add(bg_wrap(ft.Container(content=ft.Column(list((header, nav, scroll_body)), spacing=10, expand=True), padding=16, border_radius=18, bgcolor="#55060D21", border=ft.border.all(2, "#FF1E56"), expand=True)))
