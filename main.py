@@ -125,8 +125,7 @@ def neon_title(txt, size=34):
 def neon_btn(label, on_click, border="#FF1E56", glow="#FF0044", bg="#CC24072E", expand=False, width=None):
     return ft.Container(
         content=ft.ElevatedButton(label, on_click=on_click, bgcolor="transparent", color="#FFFFFF", style=ft.ButtonStyle(shadow_color="transparent", elevation=0, text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=13))),
-        bgcolor=bg, border=ft.border.all(2, border), border_radius=12, shadow=list((ft.BoxShadow(blur_radius=14, spread_radius=1, color=glow),)), expand=expand, width=width, alignment=ft.alignment.center,
-        animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT), ink=True
+        bgcolor=bg, border=ft.border.all(2, border), border_radius=12, shadow=list((ft.BoxShadow(blur_radius=14, spread_radius=1, color=glow),)), expand=expand, width=width, alignment=ft.alignment.center, ink=True
     )
 
 def main(page: ft.Page):
@@ -207,7 +206,7 @@ def main(page: ft.Page):
                     ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color="#FF4D6D", icon_size=20, on_click=lambda _, p=f: p.unlink(missing_ok=True) or refresh_tunnels()),
                 ))),
                 padding=ft.padding.symmetric(horizontal=12, vertical=4), border_radius=12, bgcolor="#CC140829",
-                border=ft.border.all(1.5, "#00FFAA" if act else "#B800FF"), animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT)
+                border=ft.border.all(1.5, "#00FFAA" if act else "#B800FF")
             ))
         page.update()
 
@@ -278,7 +277,7 @@ def main(page: ft.Page):
     apply_btn_lbl = ft.Text("» APPLY 120 FPS", weight=ft.FontWeight.BOLD, size=14, color="#FFFFFF")
     launch_btn_lbl = ft.Text("🎮 ЗАПУСТИТЬ PUBG (GLOBAL)", weight=ft.FontWeight.BOLD, size=13, color="#FFFFFF")
     shizuku_pill_txt = ft.Text("Check Shizuku", size=11, weight=ft.FontWeight.BOLD, color="#FFFFFF")
-    shizuku_pill = ft.Container(content=shizuku_pill_txt, padding=10, border_radius=16, bgcolor="#FF1E56", animate=ft.Animation(220, ft.AnimationCurve.EASE_OUT))
+    shizuku_pill = ft.Container(content=shizuku_pill_txt, padding=10, border_radius=16, bgcolor="#FF1E56")
 
     ver_pills, scheme_pills = dict(), dict()
     m60 = ft.Text("60 FPS", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF")
@@ -331,8 +330,7 @@ def main(page: ft.Page):
         sel = (st.get("ver") == v)
         box = ft.Container(
             content=ft.Row(list((ft.Icon(ft.Icons.RADIO_BUTTON_CHECKED if sel else ft.Icons.RADIO_BUTTON_UNCHECKED, color="#00FFAA" if sel else "#99CCFF", size=18), ft.Text(v, size=12, weight=ft.FontWeight.BOLD, color="#00FFAA" if sel else "#FFFFFF"))), spacing=6, alignment=ft.MainAxisAlignment.CENTER),
-            padding=10, border_radius=12, bgcolor="#CC1A0836" if sel else "#CC0A1128", border=ft.border.all(1.5, "#00FFAA" if sel else "#B800FF"), expand=True,
-            animate=ft.Animation(180, ft.AnimationCurve.EASE_OUT), ink=True, on_click=lambda _: set_ver(v)
+            padding=10, border_radius=12, bgcolor="#CC1A0836" if sel else "#CC0A1128", border=ft.border.all(1.5, "#00FFAA" if sel else "#B800FF"), expand=True, ink=True, on_click=lambda _: set_ver(v)
         )
         ver_pills.update({v: box})
         return box
@@ -341,8 +339,7 @@ def main(page: ft.Page):
         sel = (st.get("scheme") == key)
         box = ft.Container(
             content=ft.Row(list((ft.Icon(ft.Icons.RADIO_BUTTON_CHECKED if sel else ft.Icons.RADIO_BUTTON_UNCHECKED, color="#00FFAA" if sel else "#99CCFF", size=18), ft.Text(label, size=12, weight=ft.FontWeight.BOLD, color="#00FFAA" if sel else "#FFFFFF"))), spacing=6, alignment=ft.MainAxisAlignment.CENTER),
-            padding=10, border_radius=12, bgcolor="#CC1A0836" if sel else "#CC0A1128", border=ft.border.all(1.5, "#00FFAA" if sel else "#B800FF"), expand=True,
-            animate=ft.Animation(180, ft.AnimationCurve.EASE_OUT), ink=True, on_click=lambda _: set_scheme(key)
+            padding=10, border_radius=12, bgcolor="#CC1A0836" if sel else "#CC0A1128", border=ft.border.all(1.5, "#00FFAA" if sel else "#B800FF"), expand=True, ink=True, on_click=lambda _: set_scheme(key)
         )
         scheme_pills.update({key: box})
         return box
@@ -403,8 +400,8 @@ def main(page: ft.Page):
             ft.Container(content=fps_log, bgcolor="#CC0A0F24", padding=12, border_radius=12, border=ft.border.all(1.5, "#00FFAA"))
         )), spacing=10, visible=False)
 
-        tab0_btn = ft.Container(content=ft.Text("🛡 VPN ТУННЕЛИ", size=12, weight=ft.FontWeight.BOLD, color="#00FFAA"), padding=10, alignment=ft.alignment.center, border_radius=10, bgcolor="#CC1D0836", border=ft.border.all(1.5, "#00FFAA"), expand=True, animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT), ink=True)
-        tab1_btn = ft.Container(content=ft.Text("🚀 FPS UNLOCKER", size=12, weight=ft.FontWeight.BOLD, color="#FFFFFF"), padding=10, alignment=ft.alignment.center, border_radius=10, bgcolor="transparent", border=ft.border.all(1.5, "#44FFFFFF"), expand=True, animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT), ink=True)
+        tab0_btn = ft.Container(content=ft.Text("🛡 VPN ТУННЕЛИ", size=12, weight=ft.FontWeight.BOLD, color="#00FFAA"), padding=10, alignment=ft.alignment.center, border_radius=10, bgcolor="#CC1D0836", border=ft.border.all(1.5, "#00FFAA"), expand=True, ink=True)
+        tab1_btn = ft.Container(content=ft.Text("🚀 FPS UNLOCKER", size=12, weight=ft.FontWeight.BOLD, color="#FFFFFF"), padding=10, alignment=ft.alignment.center, border_radius=10, bgcolor="transparent", border=ft.border.all(1.5, "#44FFFFFF"), expand=True, ink=True)
 
         def switch_tab(idx):
             is_v = (idx == 0)
@@ -422,7 +419,7 @@ def main(page: ft.Page):
         tab1_btn.on_click = lambda _: switch_tab(1)
 
         nav = ft.Container(content=ft.Row(list((tab0_btn, tab1_btn)), spacing=8), height=54, padding=6, border_radius=14, bgcolor="#CC0A1128", border=ft.border.all(1.5, "#B800FF"))
-        header = ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.3 PRO • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF"))), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
+        header = ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.4 PRO • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF"))), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
         scroll_body = ft.Column(list((vpn_view, fps_view)), spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
 
         page.add(bg_wrap(ft.Container(content=ft.Column(list((header, nav, scroll_body)), spacing=10, expand=True), padding=16, border_radius=18, bgcolor="#55060D21", border=ft.border.all(2, "#FF1E56"), expand=True)))
