@@ -105,13 +105,28 @@ def run_shizuku_cmd(shell_cmd):
     except Exception as ex:
         return False, str(ex)
 
+def detect_next_game_patch_name(pkg: str) -> str:
+    paks_dir = f"/storage/emulated/0/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved/Paks"
+    ok, out = run_shizuku_cmd(f"ls {paks_dir}")
+    prefix = "game_patch_4.7.0."
+    max_rev = 21786
+    if ok and out:
+        for fname in out.splitlines():
+            m = re.match(r"^(game_patch_\d+\.\d+\.\d+\.)(\d+)\.pak$", fname.strip())
+            if m:
+                prefix = m.group(1)
+                rev = int(m.group(2))
+                if 21000 <= rev < 90000 and rev > max_rev:
+                    max_rev = rev
+    return f"{prefix}{max_rev + 1}.pak"
+
 def process_fps_unlock(pkg, fps, scheme):
     try:
         work_dir = Path("/data/data/com.doxaguard.doxaguard/cache/fps_build")
         if not work_dir.parent.exists():
             work_dir = Path.cwd() / "fps_build"
         work_dir.mkdir(parents=True, exist_ok=True)
-        pn = f"game_patch_4.7.0.99{fps}.pak"
+        pn = detect_next_game_patch_name(pkg)
         ip, sp, pp = work_dir / "UserCustom.ini", work_dir / "Active.sav", work_dir / pn
         ip.write_text(build_user_custom_ini(fps), encoding="utf-8")
         sp.write_bytes(build_active_sav(fps))
@@ -119,7 +134,7 @@ def process_fps_unlock(pkg, fps, scheme):
         os.chmod(ip, 0o666); os.chmod(sp, 0o666); os.chmod(pp, 0o666)
 
         dl_dir = "/storage/emulated/0/Download/DoxaGuard_FPS"
-        copy_dl = f"mkdir -p '{dl_dir}' && rm -f '{dl_dir}/game_patch_'*.pak && cp '{ip}' '{dl_dir}/UserCustom.ini' && cp '{sp}' '{dl_dir}/Active.sav' && cp '{pp}' '{dl_dir}/{pn}'"
+        copy_dl = f"mkdir -p {dl_dir} && rm -f {dl_dir}/game_patch_*.pak && cp {ip} {dl_dir}/UserCustom.ini && cp {sp} {dl_dir}/Active.sav && cp {pp} {dl_dir}/{pn}"
         if scheme == "Save":
             ok, msg = run_shizuku_cmd(copy_dl)
             if not ok:
@@ -132,19 +147,18 @@ def process_fps_unlock(pkg, fps, scheme):
         bg = f"/storage/emulated/0/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved"
         cmd = (
             f"{copy_dl} && "
-            f"mkdir -p '{bg}/Config/Android' '{bg}/SaveGames' '{bg}/Paks' && "
-            f"rm -f '{bg}/Paks/game_patch_3.6.0.99'*.pak '{bg}/Paks/game_patch_4.7.0.99'*.pak && "
-            f"cp '{ip}' '{bg}/Config/Android/UserCustom.ini' && "
-            f"cp '{sp}' '{bg}/SaveGames/Active.sav' && "
-            f"cp '{pp}' '{bg}/Paks/{pn}' && "
-            f"chmod 666 '{bg}/Config/Android/UserCustom.ini' '{bg}/SaveGames/Active.sav' '{bg}/Paks/{pn}' && "
+            f"mkdir -p {bg}/Config/Android {bg}/SaveGames {bg}/Paks && "
+            f"cp {ip} {bg}/Config/Android/UserCustom.ini && "
+            f"cp {sp} {bg}/SaveGames/Active.sav && "
+            f"cp {pp} {bg}/Paks/{pn} && "
+            f"chmod 666 {bg}/Config/Android/UserCustom.ini {bg}/SaveGames/Active.sav {bg}/Paks/{pn} && "
             f"settings put system peak_refresh_rate {float(fps)} && "
             f"settings put system min_refresh_rate {float(fps)}"
         )
         ok, msg = run_shizuku_cmd(cmd)
         return (True, f"✅ APPLY ({fps} FPS): {pn} + Active.sav + UserCustom.ini залиты в PUBG и Download/DoxaGuard_FPS!") if ok else (False, f"⚠️ Ошибка Shizuku: {msg}")
     except Exception as ex:
-        return False, f"❌ Ошибка: {ex}" 
+        return False, f"❌ Ошибка: {ex}"
 
 def neon_title(txt, size=34):
     return ft.Text(txt, size=size, weight=ft.FontWeight.W_900, color="#E066FF", style=ft.TextStyle(shadow=list((ft.BoxShadow(blur_radius=14, color="#B800FF"), ft.BoxShadow(blur_radius=28, color="#8A00E6")))))
@@ -387,6 +401,13 @@ def main(page: ft.Page):
         pkg = PUBG_PACKAGES.get(st.get("ver"))
         ok, out = run_shizuku_cmd(f"am start -n {pkg}/com.epicgames.ue4.SplashActivity || monkey -p {pkg} 1")
         fps_log.value = f"🎮 Запуск {st.get('ver')} ({pkg})..." if ok else f"⚠️ Не удалось запустить {pkg}: {out}"
+        fps_log.color = "#00FFAA" if ok else "#FF4D6D"
+        page.update()
+
+    def launch_pubg_now():
+        pkg = PUBG_PACKAGES.get(st.get("ver"))
+        ok, out = run_shizuku_cmd(f"am start -n {pkg}/com.epicgames.ue4.SplashActivity || monkey -p {pkg} 1")
+        fps_log.value = f"🎮 Запуск {st.get('ver')} ({pkg})..." if ok else f"⚠️ Ошибка запуска {pkg}: {out}"
         fps_log.color = "#00FFAA" if ok else "#FF4D6D"
         page.update()
 
