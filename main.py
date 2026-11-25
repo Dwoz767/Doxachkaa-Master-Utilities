@@ -88,7 +88,7 @@ def process_fps_unlock(pkg, fps, scheme):
     pp.write_bytes(build_game_patch_pak(fps))
     if scheme == "Save": return True, f"💾 Комплект ({fps} FPS: UserCustom.ini + Active.sav + {pn}) сохранён в Download/DoxaGuard_FPS/"
     bg = f"/storage/emulated/0/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved"
-    cmd = f"mkdir -p '{bg}/Config/Android' '{bg}/SaveGames' '{bg}/Paks' && rm -f '{bg}/Paks/game_patch_3.6.0.99'*.pak '{bg}/Paks/game_patch_4.7.0.99'*.pak && cp '{ip}' '{bg}/Config/Android/UserCustom.ini' && cp '{sp}' '{bg}/SaveGames/Active.sav' && cp '{pp}' '{bg}/Paks/{pn}' && chmod 666 '{bg}/Config/Android/UserCustom.ini' '{bg}/SaveGames/Active.sav' '{bg}/Paks/{pn}' && settings put system peak_refresh_rate {float(fps)} && settings put system min_refresh_rate {float(fps)}"
+    cmd = f"mkdir -p '{bg}/Config/Android' '{bg}/SaveGames' '{bg}/Paks' && rm -f '{bg}/Paks/game_patch_4.7.0.99'*.pak '{bg}/Paks/game_patch_4.7.0.99'*.pak && cp '{ip}' '{bg}/Config/Android/UserCustom.ini' && cp '{sp}' '{bg}/SaveGames/Active.sav' && cp '{pp}' '{bg}/Paks/{pn}' && chmod 666 '{bg}/Config/Android/UserCustom.ini' '{bg}/SaveGames/Active.sav' '{bg}/Paks/{pn}' && settings put system peak_refresh_rate {float(fps)} && settings put system min_refresh_rate {float(fps)}"
     ok, msg = run_shizuku_cmd(cmd)
     return (True, f"✅ APPLY ({fps} FPS): UserCustom.ini + Active.sav + {pn} залиты через Shizuku!") if ok else (False, f"⚠️ Файлы созданы, но Shizuku: {msg}")
 
