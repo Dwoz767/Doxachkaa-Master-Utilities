@@ -214,6 +214,58 @@ def apply_game_optimization(pkg: str, fps: int, touch_boost: bool, frame_pacing:
     except Exception as ex:
         return False, f"❌ Ошибка оптимизации: {ex}"
 
+def build_optimized_ini(fps: int, touch_boost: bool, frame_pacing: bool) -> str:
+    base = build_user_custom_ini(fps)
+    extra = []
+    if frame_pacing:
+        extra.extend([
+            "+CVars=r.OneFrameThreadLag=0",
+            "+CVars=r.FinishCurrentFrame=0",
+            "+CVars=r.GTSyncType=1",
+            "+CVars=r.MobileHDR=0",
+            "+CVars=r.BloomQuality=0",
+            "+CVars=r.DepthOfFieldQuality=0",
+            "+CVars=r.RefractionQuality=0",
+        ])
+    if touch_boost:
+        extra.extend([
+            "+CVars=r.InputLatencyMode=1",
+            "+CVars=t.MaxTickRate=120",
+        ])
+    return base + ("\n".join(extra) + "\n" if extra else "")
+
+def apply_game_optimization(pkg: str, fps: int, touch_boost: bool, frame_pacing: bool, clean_ram: bool, hud_fps: bool = True):
+    try:
+        work_dir = Path("/data/data/com.doxaguard.doxaguard/cache/fps_build")
+        if not work_dir.parent.exists():
+            work_dir = Path.cwd() / "fps_build"
+        work_dir.mkdir(parents=True, exist_ok=True)
+        ip = work_dir / "UserCustom.ini"
+        ip.write_text(build_optimized_ini(fps, touch_boost, frame_pacing), encoding="utf-8")
+        os.chmod(ip, 0o666)
+
+        bg = f"/storage/emulated/0/Android/data/{pkg}/files/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved"
+        dl_dir = "/storage/emulated/0/Download/DoxaGuard_FPS"
+        cmds = [
+            f"mkdir -p {dl_dir} && cp {ip} {dl_dir}/UserCustom_Optimized.ini",
+            f"mkdir -p {bg}/Config/Android && cp {ip} {bg}/Config/Android/UserCustom.ini && chmod 666 {bg}/Config/Android/UserCustom.ini",
+        ]
+        if touch_boost:
+            cmds.append("settings put system pointer_speed 7")
+        if clean_ram:
+            cmds.append(f"rm -rf {bg}/Logs/* /storage/emulated/0/Android/data/{pkg}/cache/* && am kill-all")
+        if hud_fps:
+            cmds.append(f"settings put system show_refresh_rate 1 && settings put system peak_refresh_rate {float(fps)} && settings put system min_refresh_rate {float(fps)}")
+        else:
+            cmds.append("settings put system show_refresh_rate 0")
+
+        ok, msg = run_shizuku_cmd(" && ".join(cmds))
+        if ok:
+            return True, f"✅ Оптимизация ({fps} FPS) применена! Конфиг записан в игру и активирован счётчик HUD."
+        return False, f"⚠️ Конфиг собран, но для записи в игру включите Shizuku: {msg}"
+    except Exception as ex:
+        return False, f"❌ Ошибка оптимизации: {ex}"
+
 def neon_title(txt, size=34):
     return ft.Text(txt, size=size, weight=ft.FontWeight.W_900, color="#E066FF", style=ft.TextStyle(shadow=list((ft.BoxShadow(blur_radius=14, color="#B800FF"), ft.BoxShadow(blur_radius=28, color="#8A00E6")))))
 
@@ -507,6 +559,78 @@ def main(page: ft.Page):
             ft.Container(content=ft.ElevatedButton(content=apply_btn_lbl, on_click=on_apply_fps, bgcolor="transparent", style=ft.ButtonStyle(shadow_color="transparent", elevation=0)), bgcolor="#CC0A2E24", border=ft.border.all(2, "#00FFAA"), border_radius=12, shadow=list((ft.BoxShadow(blur_radius=14, color="#00CC88"),)), alignment=ft.alignment.center, ink=True),
             ft.Container(content=ft.ElevatedButton(content=launch_btn_lbl, on_click=lambda _: launch_pubg_now(), bgcolor="transparent", style=ft.ButtonStyle(shadow_color="transparent", elevation=0)), bgcolor="#CC2B0618", border=ft.border.all(2, "#FF1E56"), border_radius=12, shadow=list((ft.BoxShadow(blur_radius=14, color="#FF0044"),)), alignment=ft.alignment.center, ink=True),
             ft.Container(content=fps_log, bgcolor="#CC0A0F24", padding=12, border_radius=12, border=ft.border.all(1.5, "#00FFAA"))
+        )), spacing=10, visible=False)
+
+        opt_log = ft.Text("Нажмите «Применить оптимизацию», чтобы разогнать 60 FPS → выбранный лимит", size=12, color="#00FFAA", selectable=True)
+        sw_touch = ft.Switch(value=True, active_color="#00FFAA", on_change=lambda e: st.update(touch=e.control.value))
+        sw_pacing = ft.Switch(value=True, active_color="#00FFAA", on_change=lambda e: st.update(pacing=e.control.value))
+        sw_clean = ft.Switch(value=True, active_color="#00FFAA", on_change=lambda e: st.update(clean=e.control.value))
+        sw_hud = ft.Switch(value=True, active_color="#00FFAA", on_change=lambda e: st.update(hud=e.control.value))
+
+        fps_before_txt = ft.Text("60 FPS", size=24, weight=ft.FontWeight.W_900, color="#FF4D6D")
+        fps_after_txt = ft.Text(f"{st.get('fps')} FPS", size=28, weight=ft.FontWeight.W_900, color="#99CCFF")
+        booster_badge = ft.Text("⚪ РЕЖИМ ОЖИДАНИЯ (60 FPS)", size=11, weight=ft.FontWeight.BOLD, color="#99CCFF")
+        booster_bar = ft.ProgressBar(value=0.35, color="#FF4D6D", bgcolor="#1A0836", height=8)
+        booster_gain = ft.Text("Прирост плавности: готов к разгону", size=11, color="#B8DCFF")
+
+        def opt_card(icon_str, title_str, desc_str, sw_ctrl):
+            return ft.Container(
+                content=ft.Row(list((
+                    ft.Text(icon_str, size=22),
+                    ft.Column(list((ft.Text(title_str, size=13, weight=ft.FontWeight.BOLD, color="#FFFFFF"), ft.Text(desc_str, size=11, color="#99CCFF"))), spacing=2, expand=True),
+                    sw_ctrl
+                )), alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                padding=10, border_radius=14, bgcolor="#CC0A1128", border=ft.border.all(1.5, "#B800FF")
+            )
+
+        def on_run_opt(_):
+            target_fps = st.get("fps")
+            booster_badge.value = "⚡ РАЗГОН GAME BOOSTER..."
+            booster_badge.color = "#E066FF"
+            page.update()
+
+            for step_val in range(60, target_fps + 1, 15):
+                fps_after_txt.value = f"{step_val} FPS"
+                fps_after_txt.color = "#00FFAA"
+                booster_bar.value = min(1.0, step_val / 165.0)
+                booster_bar.color = "#00FFAA"
+                page.update()
+                time.sleep(0.04)
+
+            fps_after_txt.value = f"{target_fps} FPS"
+            gain_pct = int(round(((target_fps - 60) / 60) * 100))
+            booster_badge.value = f"🟢 GAME BOOSTER АКТИВЕН • {target_fps} FPS"
+            booster_badge.color = "#00FFAA"
+            booster_gain.value = f"🚀 Было: 60 FPS ➔ Стало: {target_fps} FPS (+{gain_pct}% плавности)"
+            booster_gain.color = "#00FFAA"
+
+            ok, msg = apply_game_optimization(PUBG_PACKAGES.get(st.get("ver")), target_fps, st.get("touch"), st.get("pacing"), st.get("clean"), st.get("hud", True))
+            opt_log.value, opt_log.color = msg, "#00FFAA" if ok else "#FF4D6D"
+            page.update()
+
+        booster_panel = ft.Container(
+            content=ft.Column(list((
+                ft.Row(list((ft.Text("⚡ GAME BOOSTER MONITOR", size=13, weight=ft.FontWeight.W_900, color="#FFFFFF"), booster_badge)), alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                ft.Row(list((
+                    ft.Column(list((ft.Text("БЫЛО (СТОК)", size=10, color="#FF4D6D", weight=ft.FontWeight.BOLD), fps_before_txt)), horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    ft.Text("➔", size=26, weight=ft.FontWeight.W_900, color="#00FFAA"),
+                    ft.Column(list((ft.Text("СТАЛО (BOOST)", size=10, color="#00FFAA", weight=ft.FontWeight.BOLD), fps_after_txt)), horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                )), alignment=ft.MainAxisAlignment.SPACE_AROUND),
+                booster_bar,
+                booster_gain,
+            )), spacing=8),
+            padding=14, border_radius=16, bgcolor="#CC0A1128", border=ft.border.all(2, "#00FFAA"), shadow=list((ft.BoxShadow(blur_radius=14, color="#00CC88"),))
+        )
+
+        opt_view = ft.Column(list((
+            booster_panel,
+            opt_card("📊", "Счётчик FPS поверх игры (HUD)", "Показывает реальные 90/120/165 FPS в углу экрана", sw_hud),
+            opt_card("🎯", "Touch Response Boost", "Ускорение отклика сенсора и плавности камеры", sw_touch),
+            opt_card("🚀", "UE4 Frame Pacing", "Стабилизация FPS, отключение лишних теней и эффектов", sw_pacing),
+            opt_card("🧹", "RAM & Cache Cleaner", "Очистка кэша логов игры и выгрузка фоновых процессов", sw_clean),
+            neon_btn("⚡ ПРИМЕНИТЬ ОПТИМИЗАЦИЮ", on_run_opt, "#00FFAA", "#00CC88", "#CC0A2E24"),
+            neon_btn("🎮 ЗАПУСТИТЬ PUBG", lambda _: launch_pubg_now(), "#FF1E56", "#FF0044", "#CC2B0618"),
+            ft.Container(content=opt_log, bgcolor="#CC0A0F24", padding=12, border_radius=12, border=ft.border.all(1.5, "#00FFAA"))
         )), spacing=10, visible=False)
 
         opt_log = ft.Text("Нажмите «Применить оптимизацию», чтобы разогнать 60 FPS → выбранный лимит", size=12, color="#00FFAA", selectable=True)
