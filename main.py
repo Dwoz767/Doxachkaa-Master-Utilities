@@ -39,14 +39,29 @@ def parse_wg_config(text):
     data = dict()
     for line in text.splitlines():
         line = line.strip()
-        if line and not line.startswith(("#", ";", "(")) and "=" in line:
+        if line and not line.startswith(("#", ";", "[")) and "=" in line:
             parts = line.split("=", 1)
             data.update({parts.__getitem__(0).strip().lower(): parts.__getitem__(1).strip()})
     return data
 
 def build_user_custom_ini(fps):
     lv = {60: 6, 90: 7, 120: 8, 165: 9}.get(fps, 8)
-    return f"(UserCustom DeviceProfile)\n+CVars=r.PUBGQualityLevel=1\n+CVars=r.UserQualitySetting=1\n+CVars=r.PUBGLobbyFPS={lv}\n+CVars=r.PUBGBattleFPS={lv}\n+CVars=r.PUBGMaxFPS={fps}\n+CVars=t.MaxFPS={fps}\n+CVars=r.VSync=0\n+CVars=r.PUBGDeviceFPSLow={lv}\n+CVars=r.PUBGDeviceFPSMid={lv}\n+CVars=r.PUBGDeviceFPSHigh={lv}\n+CVars=r.PUBGDeviceFPSHDR={lv}\n+CVars=r.PUBGStyle=2\n+CVars=r.ShadowQuality=0\n".replace("(UserCustom", "[UserCustom").replace("Profile)", "Profile]")
+    return (
+        "[UserCustom DeviceProfile]\n"
+        "+CVars=r.PUBGQualityLevel=1\n"
+        "+CVars=r.UserQualitySetting=1\n"
+        f"+CVars=r.PUBGLobbyFPS={lv}\n"
+        f"+CVars=r.PUBGBattleFPS={lv}\n"
+        f"+CVars=r.PUBGMaxFPS={fps}\n"
+        f"+CVars=t.MaxFPS={fps}\n"
+        "+CVars=r.VSync=0\n"
+        f"+CVars=r.PUBGDeviceFPSLow={lv}\n"
+        f"+CVars=r.PUBGDeviceFPSMid={lv}\n"
+        f"+CVars=r.PUBGDeviceFPSHigh={lv}\n"
+        f"+CVars=r.PUBGDeviceFPSHDR={lv}\n"
+        "+CVars=r.PUBGStyle=2\n"
+        "+CVars=r.ShadowQuality=0\n"
+    )
 
 def build_active_sav(fps):
     fc = {60: 6, 90: 7, 120: 8, 165: 9}.get(fps, 8)
@@ -203,7 +218,19 @@ def main(page: ft.Page):
     def on_save(_):
         if not priv_f.value.strip():
             on_gen(None)
-        txt = f"# DoxaGuard | @Doxa_pubg_cfg\n(Interface)\nPrivateKey = {priv_f.value.strip()}\nAddress = {addr_f.value.strip() or '10.66.66.2/32'}\nDNS = 1.1.1.1, 1.0.0.1\nMTU = {mtu_f.value.strip() or '1280'}\n\n(Peer)\nPublicKey = {srv_f.value.strip()}\nEndpoint = {ep_f.value.strip()}\nAllowedIPs = 0.0.0.0/0\nPersistentKeepalive = 10\n".replace("(Interface)", "[Interface]").replace("(Peer)", "[Peer]")
+        txt = (
+            "# DoxaGuard | @Doxa_pubg_cfg\n"
+            "[Interface]\n"
+            f"PrivateKey = {priv_f.value.strip()}\n"
+            f"Address = {addr_f.value.strip() or '10.66.66.2/32'}\n"
+            "DNS = 1.1.1.1, 1.0.0.1\n"
+            f"MTU = {mtu_f.value.strip() or '1280'}\n\n"
+            "[Peer]\n"
+            f"PublicKey = {srv_f.value.strip()}\n"
+            f"Endpoint = {ep_f.value.strip()}\n"
+            "AllowedIPs = 0.0.0.0/0\n"
+            "PersistentKeepalive = 10\n"
+        )
         prev_f.value = txt
         p = save_raw(name_f.value, txt)
         refresh_tunnels()
@@ -339,6 +366,7 @@ def main(page: ft.Page):
 
     def bg_wrap(c):
         return ft.Stack(list((ft.Image(src="bg.png", fit=ft.ImageFit.COVER, width=1080, height=2400, opacity=0.92), ft.Container(content=c, padding=14, gradient=ft.LinearGradient(begin=ft.alignment.top_center, end=ft.alignment.bottom_center, colors=list(("#44040B1C", "#AA040B1C"))), expand=True))), expand=True)
+
     def open_main():
         page.clean()
         fab = ft.FloatingActionButton(icon=ft.Icons.ADD, bgcolor="#FF1E56", foreground_color="#FFFFFF", shape=ft.CircleBorder(), on_click=lambda _: setattr(sheet, "open", True) or page.update())
@@ -394,7 +422,7 @@ def main(page: ft.Page):
         tab1_btn.on_click = lambda _: switch_tab(1)
 
         nav = ft.Container(content=ft.Row(list((tab0_btn, tab1_btn)), spacing=8), padding=6, border_radius=14, bgcolor="#CC0A1128", border=ft.border.all(1.5, "#B800FF"))
-        header = ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.1 PRO • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF"))), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
+        header = ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.2 PRO • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF"))), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
 
         page.add(bg_wrap(ft.Container(content=ft.Column(list((header, nav, vpn_view, fps_view)), spacing=10, scroll=ft.ScrollMode.AUTO), padding=16, border_radius=18, bgcolor="#55060D21", border=ft.border.all(2, "#FF1E56"), expand=True)))
         on_gen(None)
@@ -402,7 +430,7 @@ def main(page: ft.Page):
 
     pwd_in = ft.TextField(label="Введите пароль доступа", password=True, can_reveal_password=True, bgcolor=fbg, border_color=rneon)
     err_t = ft.Text("", color="#FF4D6D", size=12)
-    card = ft.Container(content=ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.1 PRO • @Doxa_pubg_cfg", size=12, color="#B8DCFF"), pwd_in, neon_btn("ВОЙТИ В DOXAGUARD", lambda _: open_main() if pwd_in.value.strip() == APP_PWD else setattr(err_t, "value", "❌ Неверный пароль!") or page.update(), width=260), err_t)), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=14), padding=24, margin=ft.margin.only(top=70), bgcolor="#B3070E24", border_radius=20, border=ft.border.all(2.5, "#FF1E56"))
+    card = ft.Container(content=ft.Column(list((neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD v4.2 PRO • @Doxa_pubg_cfg", size=12, color="#B8DCFF"), pwd_in, neon_btn("ВОЙТИ В DOXAGUARD", lambda _: open_main() if pwd_in.value.strip() == APP_PWD else setattr(err_t, "value", "❌ Неверный пароль!") or page.update(), width=260), err_t)), horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=14), padding=24, margin=ft.margin.only(top=70), bgcolor="#B3070E24", border_radius=20, border=ft.border.all(2.5, "#FF1E56"))
     page.add(bg_wrap(card))
 
 ft.app(target=main, assets_dir="assets")
