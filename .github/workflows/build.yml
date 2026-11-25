@@ -18,6 +18,7 @@ jobs:
         with:
           flutter-version: '3.24.5'
           channel: stable
+      - run: yes | flutter doctor --android-licenses || true
       - run: pip install flet==0.25.2
       - run: flet build apk --project "DoxaGuard" --org com.doxaguard
       - uses: actions/upload-artifact@v4
