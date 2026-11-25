@@ -107,6 +107,13 @@ def neon_btn(label, on_click, border="#FF1E56", glow="#FF0044", bg="#CC24072E", 
     )
 
 def main(page: ft.Page):
+  try:
+    _run_app(page)
+  except Exception as _boot_err:
+    page.bgcolor = "#060E22"
+    page.add(ft.Text(f"Ошибка запуска: {_boot_err}", color="#FF4D6D", size=14, selectable=True))
+
+def _run_app(page: ft.Page):
     page.title, page.theme_mode, page.bgcolor, page.padding = "DOXAGUARD | DOXACHKAA", ft.ThemeMode.DARK, "#060E22", 0
     page.overlay.append(ft.Container(content=ft.Text("🐉 @Doxa_pubg_cfg", size=11, weight=ft.FontWeight.BOLD, color="#FFFFFF"), bgcolor="#CC120624", border=ft.border.all(1.5, "#FF1E56"), border_radius=20, padding=ft.padding.symmetric(horizontal=10, vertical=4), shadow=[ft.BoxShadow(blur_radius=10, color="#FF0044")], right=12, top=12))
 
@@ -222,9 +229,9 @@ def main(page: ft.Page):
             sel = (k == v)
             box.bgcolor = "#CC1A0836" if sel else "#CC0A1128"
             box.border = ft.border.all(1.5, "#00FFAA" if sel else "#B800FF")
-            box.content.controls.name = ft.Icons.RADIO_BUTTON_CHECKED if sel else ft.Icons.RADIO_BUTTON_UNCHECKED
-            box.content.controls.color = "#00FFAA" if sel else "#99CCFF"
-            box.content.controls.color = "#00FFAA" if sel else "#FFFFFF"
+            box.content.controls[0].name = ft.Icons.RADIO_BUTTON_CHECKED if sel else ft.Icons.RADIO_BUTTON_UNCHECKED
+            box.content.controls[0].color = "#00FFAA" if sel else "#99CCFF"
+            box.content.controls[1].color = "#00FFAA" if sel else "#FFFFFF"
         page.update()
 
     def set_scheme(sc):
@@ -233,9 +240,9 @@ def main(page: ft.Page):
             sel = (k == sc)
             box.bgcolor = "#CC1A0836" if sel else "#CC0A1128"
             box.border = ft.border.all(1.5, "#00FFAA" if sel else "#B800FF")
-            box.content.controls.name = ft.Icons.RADIO_BUTTON_CHECKED if sel else ft.Icons.RADIO_BUTTON_UNCHECKED
-            box.content.controls.color = "#00FFAA" if sel else "#99CCFF"
-            box.content.controls.color = "#00FFAA" if sel else "#FFFFFF"
+            box.content.controls[0].name = ft.Icons.RADIO_BUTTON_CHECKED if sel else ft.Icons.RADIO_BUTTON_UNCHECKED
+            box.content.controls[0].color = "#00FFAA" if sel else "#99CCFF"
+            box.content.controls[1].color = "#00FFAA" if sel else "#FFFFFF"
         page.update()
 
     def update_fps_ui(val: int):
@@ -323,7 +330,7 @@ def main(page: ft.Page):
             ft.Container(
                 content=ft.Column([
                     fps_slider,
-                    ft.Row([fps_marks, fps_marks, fps_marks, fps_marks], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Row([fps_marks[60], fps_marks[90], fps_marks[120], fps_marks[165]], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 ], spacing=2),
                 padding=ft.padding.symmetric(horizontal=12, vertical=8), border_radius=14, bgcolor="#CC0A1128", border=ft.border.all(1.5, "#FF1E56")
             ),
