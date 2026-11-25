@@ -4,12 +4,6 @@ import flet as ft
 from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives import serialization
 
-try:
-    import cv2
-    HAS_CV2 = True
-except Exception:
-    HAS_CV2 = False
-
 APP_PWD = "Doxachka2001"
 OUT_DIR = Path("/storage/emulated/0/Download")
 
@@ -58,9 +52,10 @@ def main(page: ft.Page):
 
     page.overlay.append(ft.Container(content=ft.Text("🐉 @Doxa_pubg_cfg", size=11, weight=ft.FontWeight.BOLD, color="#FFFFFF"), bgcolor="#CC120624", border=ft.border.all(1.5, "#FF1E56"), border_radius=20, padding=ft.padding.symmetric(horizontal=10, vertical=4), shadow=[ft.BoxShadow(blur_radius=10, color="#FF0044")], right=12, top=12))
 
-    state = {"connected": False, "pick_mode": "conf"}
-    status_badge = ft.Text("🔴 СТАТУС: ОТКЛЮЧЕНО", size=13, weight=ft.FontWeight.BOLD, color="#FF4D6D")
+    state = {"active_tunnel": None}
+    status_badge = ft.Text("🔴 СТАТУС: ОТКЛЮЧЕНО", size=12, weight=ft.FontWeight.BOLD, color="#FF4D6D")
     log_text = ft.Text("Готов к работе", size=12, color="#F2D9FF", selectable=True)
+    tunnels_col = ft.Column(spacing=8)
 
     def show_msg(msg, color="#E066FF"):
         log_text.value, log_text.color = msg, color
@@ -97,8 +92,100 @@ def main(page: ft.Page):
         if profile_name:
             name_f.value = profile_name.replace(".conf", "").replace(".zip", "")
         prev_f.value = raw_text.strip()
-        page.update()
         return True
+
+    def save_raw_conf(name: str, raw_text: str) -> Path:
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
+        clean_name = (name.strip() or "DoxaGuard").replace(".conf", "")
+        conf_p = OUT_DIR / f"{clean_name}.conf"
+        conf_p.write_text(raw_text.strip() + "\n", encoding="utf-8")
+        return conf_p
+
+    def toggle_tunnel_item(conf_path: Path, is_on: bool):
+        if is_on:
+            state["active_tunnel"] = conf_path.name
+            status_badge.value = f"🟢 АКТИВЕН: {conf_path.stem}"
+            status_badge.color = "#00FFAA"
+            try:
+                content = conf_path.read_text(encoding="utf-8", errors="ignore")
+                apply_config_text(content, conf_path.stem)
+                show_msg(f"🚀 Включён туннель {conf_path.name}! Выберите клиент туннеля для запуска.", "#00FFAA")
+                page.launch_url(f"file://{conf_path}")
+            except Exception as ex:
+                show_msg(f"Профиль {conf_path.name} выбран ({ex})", "#00FFAA")
+        else:
+            if state["active_tunnel"] == conf_path.name:
+                state["active_tunnel"] = None
+                status_badge.value = "🔴 СТАТУС: ОТКЛЮЧЕНО"
+                status_badge.color = "#FF4D6D"
+                show_msg(f"⏹ Туннель {conf_path.stem} отключён.", "#FF4D6D")
+        refresh_tunnels_list()
+
+    def load_tunnel_to_editor(conf_path: Path):
+        try:
+            content = conf_path.read_text(encoding="utf-8", errors="ignore")
+            if apply_config_text(content, conf_path.stem):
+                show_msg(f"📝 Профиль {conf_path.stem} загружен в редактор.", "#E066FF")
+        except Exception as ex:
+            show_msg(f"Ошибка чтения: {ex}", "#FF4D6D")
+
+    def delete_tunnel_item(conf_path: Path):
+        try:
+            if state["active_tunnel"] == conf_path.name:
+                state["active_tunnel"] = None
+                status_badge.value = "🔴 СТАТУС: ОТКЛЮЧЕНО"
+                status_badge.color = "#FF4D6D"
+            conf_path.unlink(missing_ok=True)
+            show_msg(f"🗑 Профиль {conf_path.stem} удалён.", "#FF4D6D")
+            refresh_tunnels_list()
+        except Exception as ex:
+            show_msg(f"Ошибка удаления: {ex}", "#FF4D6D")
+
+    def refresh_tunnels_list():
+        tunnels_col.controls.clear()
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
+        files = sorted(OUT_DIR.glob("*.conf"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not files:
+            tunnels_col.controls.append(
+                ft.Text("Нет сохранённых VPN. Нажмите + чтобы импортировать или создать.", size=12, color="#99CCFF")
+            )
+        else:
+            for f in files:
+                is_active = (state["active_tunnel"] == f.name)
+                border_col = "#00FFAA" if is_active else "#B800FF"
+                card = ft.Container(
+                    content=ft.Row([
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Text(f.stem, size=14, weight=ft.FontWeight.BOLD, color="#00FFAA" if is_active else "#FFFFFF"),
+                                ft.Text("Нажмите, чтобы открыть в редакторе", size=10, color="#99CCFF"),
+                            ], spacing=1),
+                            on_click=lambda _, p=f: load_tunnel_to_editor(p),
+                            expand=True,
+                        ),
+                        ft.Switch(
+                            value=is_active,
+                            active_color="#00FFAA",
+                            active_track_color="#0A3D2E",
+                            inactive_thumb_color="#FF1E56",
+                            inactive_track_color="#2B0618",
+                            on_change=lambda e, p=f: toggle_tunnel_item(p, e.control.value),
+                        ),
+                        ft.IconButton(
+                            icon=ft.Icons.DELETE_OUTLINE,
+                            icon_color="#FF4D6D",
+                            icon_size=20,
+                            tooltip="Удалить",
+                            on_click=lambda _, p=f: delete_tunnel_item(p),
+                        ),
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    padding=ft.padding.symmetric(horizontal=12, vertical=6),
+                    border_radius=12,
+                    bgcolor="#CC140829",
+                    border=ft.border.all(1.5, border_col),
+                )
+                tunnels_col.controls.append(card)
+        page.update()
 
     def on_gen(_):
         try:
@@ -125,20 +212,6 @@ def main(page: ft.Page):
         if not f_path:
             show_msg("❌ Не удалось получить путь к файлу.", "#FF4D6D")
             return
-        if state["pick_mode"] == "qr":
-            if not HAS_CV2:
-                show_msg("❌ Модуль сканера QR не загружен.", "#FF4D6D")
-                return
-            try:
-                img = cv2.imread(f_path)
-                decoded_text, _, _ = cv2.QRCodeDetector().detectAndDecode(img)
-                if decoded_text and apply_config_text(decoded_text, "DoxaGuard_QR"):
-                    show_msg("📷 QR-код успешно расшифрован и загружен!", "#00FFAA")
-                else:
-                    show_msg("❌ QR-код не найден на изображении.", "#FF4D6D")
-            except Exception as ex:
-                show_msg(f"❌ Ошибка чтения QR: {ex}", "#FF4D6D")
-            return
         try:
             p = Path(f_path)
             if p.suffix.lower() == ".zip":
@@ -147,30 +220,43 @@ def main(page: ft.Page):
                     if not conf_names:
                         show_msg("❌ Внутри архива нет файлов .conf!", "#FF4D6D")
                         return
-                    content = zf.read(conf_names[0]).decode("utf-8", errors="ignore")
-                    if apply_config_text(content, Path(conf_names[0]).stem):
-                        extra = f" (всего в архиве: {len(conf_names)})" if len(conf_names) > 1 else ""
-                        show_msg(f"📦 Импортирован: {Path(conf_names[0]).name}{extra}", "#00FFAA")
+                    imported_count = 0
+                    last_content, last_stem = "", ""
+                    for cname in conf_names:
+                        content = zf.read(cname).decode("utf-8", errors="ignore")
+                        if parse_wg_config(content):
+                            stem = Path(cname).stem
+                            save_raw_conf(stem, content)
+                            last_content, last_stem = content, stem
+                            imported_count += 1
+                    if imported_count > 0:
+                        apply_config_text(last_content, last_stem)
+                        refresh_tunnels_list()
+                        show_msg(f"📦 Импортировано профилей из архива: {imported_count}!", "#00FFAA")
             else:
                 content = p.read_text(encoding="utf-8", errors="ignore")
                 if apply_config_text(content, p.stem):
-                    show_msg(f"📂 Файл {p.name} успешно импортирован!", "#00FFAA")
+                    save_raw_conf(p.stem, content)
+                    refresh_tunnels_list()
+                    show_msg(f"📂 Профиль {p.stem} добавлен в список!", "#00FFAA")
         except Exception as ex:
-            show_msg(f"❌ Ошибка импорта: {ex}", "#FF4D6D")
+            show_msg(f"❌ Ошибка импорта файла: {ex}", "#FF4D6D")
 
     file_picker = ft.FilePicker(on_result=on_file_picked)
     page.overlay.append(file_picker)
 
     def start_import_file(_):
         close_import_sheet()
-        state["pick_mode"] = "conf"
         file_picker.pick_files(allow_multiple=False, allowed_extensions=["conf", "zip", "txt"])
 
     qr_input = ft.TextField(label="Вставьте текст из QR-кода или буфера", multiline=True, min_lines=4, max_lines=7, bgcolor="#CC0A1128", border_color="#B800FF", text_size=12)
     def apply_qr_dialog(_):
         qr_dlg.open = False
-        if apply_config_text(qr_input.value or "", "DoxaGuard_QR"):
-            show_msg("📷 Конфиг из QR-кода успешно загружен!", "#00FFAA")
+        raw = qr_input.value or ""
+        if apply_config_text(raw, "DoxaGuard_QR"):
+            save_raw_conf("DoxaGuard_QR", raw)
+            refresh_tunnels_list()
+            show_msg("📷 Профиль из QR-кода добавлен в список!", "#00FFAA")
         page.update()
 
     qr_dlg = ft.AlertDialog(
@@ -213,8 +299,8 @@ def main(page: ft.Page):
                     ft.Text("➕ ДОБАВИТЬ ТУННЕЛЬ", size=16, weight=ft.FontWeight.W_900, color="#E066FF"),
                     ft.IconButton(ft.Icons.CLOSE, icon_color="#FF4D6D", on_click=lambda _: close_import_sheet())
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                sheet_item("📂", "Импорт из файла или архива", "Загрузить готовый .conf или .zip архив", start_import_file, "#FF1E56"),
-                sheet_item("📷", "Сканировать QR-код", "Выбрать фото / скриншот с QR-кодом конфига", start_import_qr, "#B800FF"),
+                sheet_item("📂", "Импорт из файла или архива", "Добавить .conf или все конфиги из .zip архива", start_import_file, "#FF1E56"),
+                sheet_item("📷", "Сканировать QR-код", "Вставить распознанный QR-код конфига", start_import_qr, "#B800FF"),
                 sheet_item("✨", "Создать с нуля", "Сгенерировать новые ключи и настроить вручную", on_create_scratch, "#00FFAA"),
             ], tight=True, spacing=10),
             padding=18, bgcolor="#0A1128", border_radius=ft.border_radius.only(top_left=22, top_right=22), border=ft.border.all(2, "#FF1E56")
@@ -244,35 +330,15 @@ def main(page: ft.Page):
         conf_p.write_text(txt, encoding="utf-8")
         with zipfile.ZipFile(OUT_DIR / f"{fn}_protected.zip", "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr(f"{fn}.conf", txt)
+        refresh_tunnels_list()
         return fn, conf_p
 
     def on_save(_):
         try:
             fn, _ = save_files()
-            show_msg(f"✅ Сохранено в Download:\n• {fn}.conf\n• {fn}_protected.zip", "#E066FF")
+            show_msg(f"✅ Профиль {fn}.conf добавлен в список и сохранён в Download!", "#E066FF")
         except Exception as ex:
             show_msg(f"Ошибка сохранения: {ex}", "#FF4D6D")
-
-    def on_toggle_vpn(e):
-        try:
-            if not state["connected"]:
-                fn, conf_p = save_files()
-                state["connected"] = True
-                vpn_switch.value = True
-                status_badge.value = "🟢 СТАТУС: АКТИВИРОВАНО (DOXAGUARD)"
-                status_badge.color = "#00FFAA"
-                show_msg(f"🚀 Профиль {fn}.conf собран и активирован в DoxaGuard!", "#00FFAA")
-                page.launch_url(f"file://{conf_p}")
-            else:
-                state["connected"] = False
-                vpn_switch.value = False
-                status_badge.value = "🔴 СТАТУС: ОТКЛЮЧЕНО"
-                status_badge.color = "#FF4D6D"
-                show_msg("⏹ Туннель DoxaGuard переведён в режим отключения.", "#FF4D6D")
-        except Exception as ex:
-            show_msg(f"Файл сохранён в Download ({ex})", "#E066FF")
-
-    vpn_switch = ft.Switch(value=False, active_color="#00FFAA", active_track_color="#0A3D2E", inactive_thumb_color="#FF1E56", inactive_track_color="#2B0618", on_change=on_toggle_vpn)
 
     def bg_wrap(ctrl):
         return ft.Stack([
@@ -285,20 +351,20 @@ def main(page: ft.Page):
         page.floating_action_button = ft.FloatingActionButton(
             icon=ft.Icons.ADD, bgcolor="#FF1E56", foreground_color="#FFFFFF", shape=ft.CircleBorder(), on_click=open_import_sheet, tooltip="Импорт / Создать профиль"
         )
-        vpn_panel = ft.Container(
-            content=ft.Row([
-                ft.Column([
-                    ft.Text("⚡ DOXAGUARD TUNNEL", size=14, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
+        tunnels_panel = ft.Container(
+            content=ft.Column([
+                ft.Row([
+                    ft.Text("⚡ МОИ ТУННЕЛИ DOXAGUARD", size=13, weight=ft.FontWeight.BOLD, color="#FFFFFF"),
                     status_badge,
-                ], spacing=2, expand=True),
-                vpn_switch,
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            padding=12, border_radius=14, bgcolor="#CC140829", border=ft.border.all(2, "#B800FF"), shadow=[ft.BoxShadow(blur_radius=14, color="#9D00FF")]
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                tunnels_col,
+            ], spacing=8),
+            padding=12, border_radius=14, bgcolor="#CC0A1128", border=ft.border.all(2, "#B800FF"), shadow=[ft.BoxShadow(blur_radius=14, color="#9D00FF")]
         )
         frame = ft.Container(
             content=ft.Column([
                 ft.Column([neon_title("DOXACHKAA", 34), ft.Text("DOXAGUARD • @Doxa_pubg_cfg", size=12, weight=ft.FontWeight.BOLD, color="#99CCFF")], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2),
-                vpn_panel,
+                tunnels_panel,
                 ft.Row([
                     neon_btn("🔑 Ключи", on_gen, "#B800FF", "#9D00FF", "#CC1D0836", expand=True),
                     neon_btn("⚡ Собрать VPN", on_save, "#FF1E56", "#FF0044", "#CC2B0618", expand=True),
@@ -313,6 +379,7 @@ def main(page: ft.Page):
         )
         page.add(bg_wrap(frame))
         on_gen(None)
+        refresh_tunnels_list()
 
     pwd_in = ft.TextField(label="Введите пароль доступа", password=True, can_reveal_password=True, bgcolor=fbg, border_color=rneon, focused_border_color="#E066FF")
     err_t = ft.Text("", color="#FF4D6D", size=12)
